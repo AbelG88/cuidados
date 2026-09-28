@@ -500,7 +500,25 @@
     <button class="menu-item" id="exportProposalBtn">💾 Exportar respaldo completo</button>
     <button class="menu-item" id="importProposalBtn">📥 Importar respaldo</button>
     <button class="menu-item" id="deleteMonthBtn" style="color:#c0392b;">🗑️ Borrar mes actual</button>
+    <button class="menu-item" id="deleteRangeBtn" style="color:#c0392b;">🗑️ Borrar por rango de fechas</button>
     <button class="menu-item" id="checkOverlapsBtn">⚠️ Verificar superposiciones</button>
+  </div>
+
+  <!-- Modal borrar por rango -->
+  <div id="deleteRangeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;padding:20px 12px;overflow-y:auto;">
+    <div style="background:var(--card);border-radius:14px;max-width:400px;margin:0 auto;padding:20px;">
+      <h3 style="margin:0 0 14px;font-size:1.05rem;">🗑️ Borrar por rango de fechas</h3>
+      <p style="font-size:.85rem;color:var(--muted);margin:0 0 14px;">Borra todos los bloques de cuidado y actividades entre las fechas indicadas.</p>
+      <label style="font-size:.85rem;font-weight:600;">Desde</label>
+      <input type="date" id="deleteRangeFrom" style="width:100%;margin:4px 0 12px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:1rem;">
+      <label style="font-size:.85rem;font-weight:600;">Hasta</label>
+      <input type="date" id="deleteRangeTo" style="width:100%;margin:4px 0 16px;padding:8px;border:1px solid var(--line);border-radius:8px;font-size:1rem;">
+      <div id="deleteRangePreview" style="font-size:.82rem;color:var(--muted);margin-bottom:14px;min-height:18px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button id="deleteRangeCancelBtn" style="flex:1;padding:10px;border:1px solid var(--line);background:none;border-radius:8px;cursor:pointer;">Cancelar</button>
+        <button id="deleteRangeConfirmBtn" style="flex:1;padding:10px;background:#c0392b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Borrar</button>
+      </div>
+    </div>
   </div>
 
   <!-- Modal validación de cobertura mensual -->
@@ -1798,54 +1816,54 @@ async function pasteCareTo(destDateStr){
   const src = copySource;
   let newBlocks = [];
 
+  let newEvents = [];
+
   if(src.type==='day'){
-    // Copiar todos los bloques del día origen al día destino (mismas horas)
     const srcBlocks = careBlocksForDay(src.dateStr);
-    if(srcBlocks.length===0){ alert('El día origen no tiene bloques de cuidado.'); return; }
-    newBlocks = srcBlocks.map(cb=>{
-      // calcular duración y aplicar al destino manteniendo horas
-      return { id:uid(), startDate:destDateStr, startTime:cb.startTime, endDate:destDateStr, endTime:cb.endTime, category:cb.category };
-    });
-    if(!confirm(`Pegar ${newBlocks.length} bloque(s) del ${src.dateStr} al ${destDateStr}? Los bloques existentes en el destino se mantienen (se agregan, no reemplazan).`)) return;
+    const srcEvents = events.filter(ev=> ev.date === src.dateStr || (ev.endDate && ev.date <= src.dateStr && ev.endDate >= src.dateStr));
+    if(srcBlocks.length===0 && srcEvents.length===0){ alert('El día origen no tiene bloques ni actividades.'); return; }
+    newBlocks = srcBlocks.map(cb=>({ id:uid(), startDate:destDateStr, startTime:cb.startTime, endDate:destDateStr, endTime:cb.endTime, category:cb.category }));
+    newEvents = srcEvents.map(ev=>({ ...ev, id:uid(), date:destDateStr, endDate: ev.endDate ? destDateStr : undefined }));
+    if(!confirm(`Pegar del ${src.dateStr} al ${destDateStr}?\n${newBlocks.length} bloque(s) + ${newEvents.length} actividad(es). Se agregan sin reemplazar.`)) return;
+
   } else if(src.type==='week'){
-    // Copiar semana entera desplazando días
     const srcStart = new Date(src.weekDays[0]+'T12:00:00');
     const destWeekDays = getWeekDays(new Date(destDateStr+'T12:00:00')).map(fmtDateStr);
-    const srcAllBlocks = src.weekDays.flatMap(ds=>careBlocksForDay(ds));
-    if(srcAllBlocks.length===0){ alert('La semana origen no tiene bloques de cuidado.'); return; }
     const offsetDays = Math.round((new Date(destWeekDays[0]+'T12:00:00') - srcStart)/86400000);
-    newBlocks = srcAllBlocks.map(cb=>{
-      const newStart = new Date(cb.startDate+'T12:00:00'); newStart.setDate(newStart.getDate()+offsetDays);
-      const newEnd = new Date(cb.endDate+'T12:00:00'); newEnd.setDate(newEnd.getDate()+offsetDays);
-      return { id:uid(), startDate:fmtDateStr(newStart), startTime:cb.startTime, endDate:fmtDateStr(newEnd), endTime:cb.endTime, category:cb.category };
-    });
-    if(!confirm(`Pegar semana ${src.weekDays[0]} → ${destWeekDays[0]} (${newBlocks.length} bloques)?`)) return;
+    const shiftDs = ds=>{ const d=new Date(ds+'T12:00:00'); d.setDate(d.getDate()+offsetDays); return fmtDateStr(d); };
+    const srcAllBlocks = src.weekDays.flatMap(ds=>careBlocksForDay(ds));
+    const srcAllEvents = events.filter(ev=> src.weekDays.includes(ev.date));
+    if(srcAllBlocks.length===0 && srcAllEvents.length===0){ alert('La semana origen no tiene bloques ni actividades.'); return; }
+    newBlocks = srcAllBlocks.map(cb=>({ id:uid(), startDate:shiftDs(cb.startDate), startTime:cb.startTime, endDate:shiftDs(cb.endDate), endTime:cb.endTime, category:cb.category }));
+    newEvents = srcAllEvents.map(ev=>({ ...ev, id:uid(), date:shiftDs(ev.date), endDate: ev.endDate ? shiftDs(ev.endDate) : undefined }));
+    if(!confirm(`Pegar semana ${src.weekDays[0]} → ${destWeekDays[0]}?\n${newBlocks.length} bloque(s) + ${newEvents.length} actividad(es).`)) return;
+
   } else {
-    // Copiar mes entero
     const srcMs = src.monthStr;
     const destMs = destDateStr.slice(0,7);
     if(srcMs===destMs){ alert('El origen y destino son el mismo mes.'); return; }
     const [srcY,srcM] = srcMs.split('-').map(Number);
     const [dstY,dstM] = destMs.split('-').map(Number);
+    function shiftDate(ds){
+      const [y,m,d] = ds.split('-').map(Number);
+      let nm = m+(dstM-srcM), ny = y+(dstY-srcY);
+      const nd = Math.min(d, new Date(ny, nm, 0).getDate());
+      return `${String(ny).padStart(4,'0')}-${String(nm).padStart(2,'0')}-${String(nd).padStart(2,'0')}`;
+    }
     const srcMonthBlocks = careBlocks.filter(cb=>cb.startDate.startsWith(srcMs));
-    if(srcMonthBlocks.length===0){ alert('El mes origen no tiene bloques de cuidado.'); return; }
-    newBlocks = srcMonthBlocks.map(cb=>{
-      function shiftDate(ds){
-        const [y,m,d] = ds.split('-').map(Number);
-        let nm = m+(dstM-srcM), ny = y+(dstY-srcY);
-        const nd = Math.min(d, new Date(ny, nm, 0).getDate());
-        return `${String(ny).padStart(4,'0')}-${String(nm).padStart(2,'0')}-${String(nd).padStart(2,'0')}`;
-      }
-      return { id:uid(), startDate:shiftDate(cb.startDate), startTime:cb.startTime, endDate:shiftDate(cb.endDate), endTime:cb.endTime, category:cb.category };
-    });
-    if(!confirm(`Pegar mes ${srcMs} → ${destMs} (${newBlocks.length} bloques)?`)) return;
+    const srcMonthEvents = events.filter(ev=>ev.date.startsWith(srcMs));
+    if(srcMonthBlocks.length===0 && srcMonthEvents.length===0){ alert('El mes origen no tiene bloques ni actividades.'); return; }
+    newBlocks = srcMonthBlocks.map(cb=>({ id:uid(), startDate:shiftDate(cb.startDate), startTime:cb.startTime, endDate:shiftDate(cb.endDate), endTime:cb.endTime, category:cb.category }));
+    newEvents = srcMonthEvents.map(ev=>({ ...ev, id:uid(), date:shiftDate(ev.date), endDate: ev.endDate ? shiftDate(ev.endDate) : undefined }));
+    if(!confirm(`Pegar mes ${srcMs} → ${destMs}?\n${newBlocks.length} bloque(s) + ${newEvents.length} actividad(es).`)) return;
   }
 
   careBlocks.push(...newBlocks);
-  await saveCareBlocks();
+  events.push(...newEvents);
+  await persistAll();
   exitCopyMode();
   renderCalendar();
-  alert(`✅ ${newBlocks.length} bloque(s) copiados correctamente.`);
+  alert(`✅ Copiados: ${newBlocks.length} bloque(s) y ${newEvents.length} actividad(es).`);
 }
 
 // ---------- Exportar PDF ----------
@@ -2673,22 +2691,22 @@ function openOverlapModal(){
       <div style="margin-bottom:6px;"><b>#${idx+1}</b> — solapamiento de <b>${overLabel}</b></div>
       <div>🔵 ${fmtBlock(a)}</div>
       <div>🔴 ${fmtBlock(b)}</div>
-      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
         <button class="overlap-fix-btn" data-action="trim-a" data-idx="${idx}"
-          style="flex:1;min-width:120px;padding:6px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:.8rem;">
-          ✂️ Recortar bloque 🔵
+          style="padding:7px 4px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:.78rem;text-align:center;">
+          ✂️ Recortar 🔵
         </button>
         <button class="overlap-fix-btn" data-action="trim-b" data-idx="${idx}"
-          style="flex:1;min-width:120px;padding:6px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:.8rem;">
-          ✂️ Recortar bloque 🔴
-        </button>
-        <button class="overlap-fix-btn" data-action="delete-b" data-idx="${idx}"
-          style="flex:1;min-width:120px;padding:6px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.8rem;">
-          🗑️ Eliminar bloque 🔴
+          style="padding:7px 4px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:.78rem;text-align:center;">
+          ✂️ Recortar 🔴
         </button>
         <button class="overlap-fix-btn" data-action="delete-a" data-idx="${idx}"
-          style="flex:1;min-width:120px;padding:6px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.8rem;">
-          🗑️ Eliminar bloque 🔵
+          style="padding:7px 4px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.78rem;text-align:center;">
+          🗑️ Eliminar 🔵
+        </button>
+        <button class="overlap-fix-btn" data-action="delete-b" data-idx="${idx}"
+          style="padding:7px 4px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.78rem;text-align:center;">
+          🗑️ Eliminar 🔴
         </button>
       </div>`;
 
@@ -2736,6 +2754,63 @@ function openOverlapModal(){
 
   document.getElementById('overlapModal').style.display = 'block';
 }
+
+// ---------- Borrar por rango de fechas ----------
+document.getElementById('deleteRangeBtn').addEventListener('click', ()=>{
+  document.getElementById('moreOptionsMenu').style.display = 'none';
+  // Pre-rellenar con inicio/fin del mes actual
+  const pad = n=>String(n).padStart(2,'0');
+  const y = currentDate.getFullYear(), m = currentDate.getMonth();
+  const firstDay = `${y}-${pad(m+1)}-01`;
+  const lastDay  = `${y}-${pad(m+1)}-${pad(new Date(y,m+1,0).getDate())}`;
+  document.getElementById('deleteRangeFrom').value = firstDay;
+  document.getElementById('deleteRangeTo').value   = lastDay;
+  updateDeleteRangePreview();
+  document.getElementById('deleteRangeModal').style.display = 'block';
+});
+
+function updateDeleteRangePreview(){
+  const from = document.getElementById('deleteRangeFrom').value;
+  const to   = document.getElementById('deleteRangeTo').value;
+  const el   = document.getElementById('deleteRangePreview');
+  if(!from || !to || from > to){ el.textContent = ''; return; }
+  const cbCount = careBlocks.filter(cb=> cb.startDate <= to && cb.endDate >= from).length;
+  const evCount = events.filter(ev=> {
+    const evEnd = ev.endDate || ev.date;
+    return ev.date <= to && evEnd >= from;
+  }).length;
+  el.textContent = `Se borrarán: ${cbCount} bloque(s) de cuidado y ${evCount} actividad(es).`;
+}
+
+['deleteRangeFrom','deleteRangeTo'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', updateDeleteRangePreview);
+});
+
+document.getElementById('deleteRangeCancelBtn').addEventListener('click', ()=>{
+  document.getElementById('deleteRangeModal').style.display = 'none';
+});
+
+document.getElementById('deleteRangeConfirmBtn').addEventListener('click', async ()=>{
+  const from = document.getElementById('deleteRangeFrom').value;
+  const to   = document.getElementById('deleteRangeTo').value;
+  if(!from || !to || from > to){ alert('Rango inválido.'); return; }
+  if(isReadOnly){ alert('Activá el modo edición (PIN) para borrar.'); return; }
+
+  const cbBefore = careBlocks.length;
+  const evBefore = events.length;
+  careBlocks = careBlocks.filter(cb=> !(cb.startDate <= to && cb.endDate >= from));
+  events = events.filter(ev=>{
+    const evEnd = ev.endDate || ev.date;
+    return !(ev.date <= to && evEnd >= from);
+  });
+  const cbDel = cbBefore - careBlocks.length;
+  const evDel = evBefore - events.length;
+
+  await persistAll();
+  renderCalendar();
+  document.getElementById('deleteRangeModal').style.display = 'none';
+  alert(`✅ Borrados: ${cbDel} bloque(s) de cuidado y ${evDel} actividad(es).`);
+});
 
 document.getElementById('checkOverlapsBtn').addEventListener('click', ()=>{
   document.getElementById('moreOptionsMenu').style.display = 'none';
