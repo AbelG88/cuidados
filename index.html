@@ -481,6 +481,7 @@
       <div class="summary-row"><span><span class="dot mama"></span>Mamá</span><b id="monthMama">0h</b></div>
       <div class="summary-row"><span><span class="dot papa"></span>Papá</span><b id="monthPapa">0h</b></div>
       <div class="summary-diff" id="monthDiff"></div>
+      <div id="monthCoverage" style="margin-top:6px;font-size:.75rem;"></div>
     </div>
   </div>
 
@@ -500,7 +501,6 @@
     <button class="menu-item" id="importProposalBtn">📥 Importar respaldo</button>
     <button class="menu-item" id="deleteMonthBtn" style="color:#c0392b;">🗑️ Borrar mes actual</button>
     <button class="menu-item" id="checkOverlapsBtn">⚠️ Verificar superposiciones</button>
-    <button class="menu-item" id="checkCoverageBtn">📊 Validar cobertura del mes</button>
   </div>
 
   <!-- Modal validación de cobertura mensual -->
@@ -1127,6 +1127,30 @@ function renderSummary(){
   const monthDiff = monthMama - monthPapa;
   document.getElementById('weekDiff').textContent = weekDiff===0 ? 'Parejo' : `${Math.abs(weekDiff).toFixed(1)}h más ${weekDiff>0?'Mamá':'Papá'}`;
   document.getElementById('monthDiff').textContent = monthDiff===0 ? 'Parejo' : `${Math.abs(monthDiff).toFixed(1)}h más ${monthDiff>0?'Mamá':'Papá'}`;
+
+  // Validación de cobertura inline — sin botón
+  const daysInMonth = monthEndD.getDate();
+  const totalHoursMonth = daysInMonth * 24;
+  const sumaCargada = monthMama + monthPapa;
+  const exceso = sumaCargada - totalHoursMonth;
+
+  let diasSinBloque = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const pad = n=>String(n).padStart(2,'0');
+    const ds = `${currentDate.getFullYear()}-${pad(currentDate.getMonth()+1)}-${pad(d)}`;
+    if(careBlocksForDay(ds).length===0) diasSinBloque++;
+  }
+
+  const coverageEl = document.getElementById('monthCoverage');
+  if(exceso > 1){ // margen de 1h para evitar falsos positivos por redondeo
+    coverageEl.innerHTML = `<span style="color:#c0392b;">⚠️ Exceso de ${exceso.toFixed(1)}h — hay superposiciones</span>`;
+  } else if(diasSinBloque > 0){
+    coverageEl.innerHTML = `<span style="color:#856404;">📅 ${diasSinBloque} día${diasSinBloque>1?'s':''} sin cobertura</span>`;
+  } else if(sumaCargada === 0){
+    coverageEl.innerHTML = '';
+  } else {
+    coverageEl.innerHTML = `<span style="color:#1e8449;">✅ Cobertura coherente</span>`;
+  }
 }
 
 // ---------- Modal de día ----------
