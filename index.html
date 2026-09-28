@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cuidados</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root {
+  --abel:#4F7EF7; --abel-l:#E8EFFE; --abel-d:#2D5BD4;
+  --vicky:#F25C8A; --vicky-l:#FDEDF3; --vicky-d:#C93A67;
+  --mixed:#8B5CF6; --mixed-l:#EDE9FF;
+  --holiday:#F59E0B; --holiday-l:#FEF3C7;
+  --event:#10B981; --event-l:#D1FAE5;
+  --bg:#F7F5F2; --card:#FFFFFF; --text:#1A1A2E; --soft:#6B6B80; --border:#E8E4DE;
+  --green:#10B981; --red:#EF4444;
+  --copy:#FF6B35; --copy-l:#FFF0EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+
+/* HEADER */
+.hdr{background:var(--text);color:#fff;padding:18px 20px 14px;position:sticky;top:0;z-index:100}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:21px}
+.hdr h1 span{color:var(--abel)}
+.mnav{display:flex;align-items:center;gap:8px}
+.mnav button{background:rgba(255,255,255,.12);border:none;color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
+.mlabel{font-size:13px;font-weight:500;min-width:98px;text-align:center}
+.saldo-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.si{background:rgba(255,255,255,.09);border-radius:10px;padding:7px 8px;text-align:center}
+.si .v{font-size:15px;font-weight:700;line-height:1}
+.si .l{font-size:9px;opacity:.6;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.si.abel .v{color:#7BA8FF}.si.vicky .v{color:#F890AD}
+.si.bal .v{color:var(--green)}.si.bal.neg .v{color:#FF7777}
+
+/* TABS */
+.tabs{display:flex;gap:5px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:7px 4px;border:1.5px solid var(--border);background:transparent;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;transition:all .2s}
+.tab.active{background:var(--text);border-color:var(--text);color:#fff}
+
+/* COPY MODE BANNER */
+.copy-banner{display:none;background:var(--copy);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:90}
+.copy-banner.show{display:flex}
+.copy-banner button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer}
+.copy-banner .info{font-size:11px;opacity:.85;margin-top:1px}
+
+/* CALENDAR */
+.cal-wrap{padding:14px 16px}
+.wday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.wday-row span{text-align:center;font-size:10px;font-weight:600;color:var(--soft);text-transform:uppercase;padding:3px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cd{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;border:2px solid transparent;position:relative;background:var(--card)}
+.cd.empty{background:transparent;cursor:default}
+.cd.abel{background:var(--abel-l)}.cd.vicky{background:var(--vicky-l)}
+.cd.mixed{background:var(--mixed-l)}.cd.holiday{background:var(--holiday-l)}
+.cd.today{border-color:var(--text)!important}
+.cd:not(.empty):active{transform:scale(.92)}
+.cd.copy-src{border-color:var(--copy)!important;box-shadow:0 0 0 2px var(--copy)}
+.cd.copy-dst{border-color:var(--green)!important;background:var(--event-l)!important}
+.cd .dn{font-size:14px;font-weight:700;line-height:1}
+.cd.abel .dn{color:var(--abel-d)}.cd.vicky .dn{color:var(--vicky-d)}
+.cd.mixed .dn{color:var(--mixed)}.cd.holiday .dn{color:#92400E}
+.cd .di{font-size:8px;font-weight:500;margin-top:1px;opacity:.55}
+.cd .dots{position:absolute;bottom:3px;display:flex;gap:2px}
+.cd .dot{width:4px;height:4px;border-radius:50%}
+.cd .dot.note{background:var(--soft)}
+.cd .dot.event{background:var(--event)}
+
+/* WEEK */
+.wk-wrap{padding:10px 16px}
+.wk-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.wk-nav button{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;color:var(--text);transition:all .2s}
+.wk-nav button:hover{background:var(--text);color:#fff;border-color:var(--text)}
+.wk-nav span{font-size:12px;font-weight:600;color:var(--soft)}
+.dc{background:var(--card);border-radius:14px;margin-bottom:7px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07);cursor:pointer;border-left:4px solid transparent}
+.dc:active{transform:scale(.99)}
+.dc.abel{border-left-color:var(--abel)}.dc.vicky{border-left-color:var(--vicky)}
+.dc.mixed{border-left-color:var(--mixed)}.dc.holiday{border-left-color:var(--holiday)}
+.dc-inner{padding:11px 13px;display:flex;align-items:center;gap:11px}
+.db{width:42px;height:42px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.db.abel{background:var(--abel-l)}.db.vicky{background:var(--vicky-l)}
+.db.mixed{background:var(--mixed-l)}.db.holiday{background:var(--holiday-l)}
+.db .dbn{font-size:17px;font-weight:700;line-height:1}
+.db.abel .dbn{color:var(--abel-d)}.db.vicky .dbn{color:var(--vicky-d)}
+.db.mixed .dbn{color:var(--mixed)}.db.holiday .dbn{color:#92400E}
+.db .dbd{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;opacity:.5}
+.di-info{flex:1;min-width:0}
+.di-who{font-size:13px;font-weight:600}
+.di-bl{font-size:10px;color:var(--soft);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.di-note{font-size:10px;color:var(--soft);margin-top:3px;font-style:italic}
+.di-ev{font-size:10px;color:var(--event);font-weight:500;margin-top:2px}
+.dh{text-align:right;flex-shrink:0}
+.dh .dha{font-size:12px;font-weight:600;color:var(--abel)}
+.dh .dhv{font-size:12px;font-weight:600;color:var(--vicky)}
+.dh .dhl{font-size:9px;color:var(--soft);text-transform:uppercase;letter-spacing:.3px}
+
+/* EVENTS TAB */
+.ev-wrap{padding:12px 16px}
+.ev-month-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);margin-bottom:10px}
+.ev-card{background:var(--card);border-radius:13px;padding:12px 14px;margin-bottom:7px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid var(--event);display:flex;align-items:center;gap:12px}
+.ev-date-badge{background:var(--event-l);border-radius:10px;padding:6px 10px;text-align:center;flex-shrink:0}
+.ev-date-badge .edn{font-size:18px;font-weight:700;color:var(--event);line-height:1}
+.ev-date-badge .edm{font-size:9px;color:var(--event);font-weight:600;text-transform:uppercase}
+.ev-info{flex:1}
+.ev-info .eit{font-size:14px;font-weight:600}
+.ev-info .eis{font-size:11px;color:var(--soft);margin-top:2px}
+.ev-del{background:none;border:none;cursor:pointer;font-size:18px;color:var(--soft);padding:4px;border-radius:6px}
+.ev-del:hover{color:var(--red)}
+.ev-empty{text-align:center;padding:30px 20px;color:var(--soft);font-size:13px}
+.add-ev-btn{width:100%;padding:12px;background:var(--event);color:#fff;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;transition:all .2s}
+.add-ev-btn:active{transform:scale(.98)}
+
+/* EXPORT TAB */
+.exp-wrap{padding:16px}
+.exp-card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.exp-card h3{font-size:14px;font-weight:600;margin-bottom:6px}
+.exp-card p{font-size:12px;color:var(--soft);margin-bottom:14px;line-height:1.5}
+.exp-btn{width:100%;padding:12px;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.exp-btn:active{transform:scale(.98)}
+.exp-btn.whatsapp{background:#25D366;color:#fff}
+.exp-btn.pdf{background:var(--text);color:#fff}
+.exp-btn.copy-mode{background:var(--copy);color:#fff}
+.exp-sep{height:1px;background:var(--border);margin:14px 0}
+.copy-hint{font-size:11px;color:var(--soft);text-align:center;margin-top:8px;line-height:1.5}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.ov.open{display:flex}
+.modal{background:var(--card);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:0 0 28px;animation:slideUp .23s ease;max-height:92vh;overflow-y:auto}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.mhandle{width:38px;height:4px;background:var(--border);border-radius:2px;margin:11px auto 0}
+.mhdr{padding:14px 18px;border-bottom:1px solid var(--border)}
+.mhdr h2{font-family:'DM Serif Display',serif;font-size:19px}
+.mhdr .ms{font-size:11px;color:var(--soft);margin-top:2px}
+.mbody{padding:14px 18px}
+.sec-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);margin-bottom:8px}
+.blk-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;background:var(--bg);border-radius:11px;padding:9px 11px}
+.bt{font-size:11px;font-weight:600;color:var(--soft);min-width:88px}
+.bh{font-size:10px;color:var(--soft);min-width:30px}
+.btog{flex:1;display:flex;gap:5px}
+.ob{flex:1;padding:5px;border-radius:7px;border:1.5px solid var(--border);background:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--soft)}
+.ob.oa{background:var(--abel-l);border-color:var(--abel);color:var(--abel-d);font-weight:600}
+.ob.ov{background:var(--vicky-l);border-color:var(--vicky);color:var(--vicky-d);font-weight:600}
+.day-tot{display:flex;gap:7px;margin-top:12px;padding:11px;background:var(--bg);border-radius:11px}
+.dti{flex:1;text-align:center}
+.dti .dtv{font-size:17px;font-weight:700}
+.dti.abel .dtv{color:var(--abel)}.dti.vicky .dtv{color:var(--vicky)}
+.dti .dtl{font-size:9px;color:var(--soft);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+.note-sec{margin-top:13px}
+.note-sec label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);display:block;margin-bottom:6px}
+.note-sec textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);resize:none;height:64px;outline:none;transition:border-color .2s}
+.note-sec textarea:focus{border-color:var(--abel)}
+.ev-sec{margin-top:13px}
+.ev-list-modal{margin-bottom:8px}
+.ev-item-modal{display:flex;align-items:center;justify-content:space-between;background:var(--event-l);border-radius:9px;padding:7px 10px;margin-bottom:5px;font-size:12px}
+.ev-item-modal .eip{font-weight:500;color:var(--event)}
+.ev-item-modal button{background:none;border:none;cursor:pointer;color:var(--soft);font-size:15px}
+.ev-add-row{display:flex;gap:6px}
+.ev-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);outline:none}
+.ev-input:focus{border-color:var(--event)}
+.ev-add-btn{background:var(--event);color:#fff;border:none;border-radius:9px;padding:7px 12px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer}
+.hol-banner{background:var(--holiday-l);border-radius:9px;padding:7px 11px;font-size:11px;color:#92400E;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.save-btn{width:100%;margin-top:13px;padding:13px;background:var(--text);color:#fff;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.save-btn:active{transform:scale(.98)}
+
+/* EVENT MODAL */
+.emod{background:var(--card);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:0 0 28px;animation:slideUp .23s ease}
+.emod .mbody input,.emod .mbody select{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;margin-bottom:10px}
+.emod .mbody input:focus,.emod .mbody select:focus{border-color:var(--event)}
+.emod .mbody label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);display:block;margin-bottom:5px}
+.ev-save-btn{width:100%;padding:13px;background:var(--event);color:#fff;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
+
+::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-top">
+    <h1>Cui<span>dados</span></h1>
+    <div class="mnav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <span class="mlabel" id="mlabel">Mayo 2026</span>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+  </div>
+  <div class="saldo-strip">
+    <div class="si abel"><div class="v" id="sA">—</div><div class="l">Abel hs</div></div>
+    <div class="si vicky"><div class="v" id="sV">—</div><div class="l">Vicky hs</div></div>
+    <div class="si bal" id="siBal"><div class="v" id="sBal">—</div><div class="l">Saldo</div></div>
+  </div>
+</div>
+
+<div class="copy-banner" id="copyBanner">
+  <div>
+    <div id="copyBannerText">Modo copiar activo</div>
+    <div class="info" id="copyBannerInfo">Seleccioná el día origen</div>
+  </div>
+  <button onclick="cancelCopy()">Cancelar</button>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="setTab('mes')">📅 Mes</button>
+  <button class="tab" onclick="setTab('semana')">📋 Semana</button>
+  <button class="tab" onclick="setTab('eventos')">📌 Eventos</button>
+  <button class="tab" onclick="setTab('opciones')">⚙️ Más</button>
+</div>
+
+<!-- MES -->
+<div id="tabMes" class="cal-wrap">
+  <div class="wday-row"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+  <div class="cal-grid" id="calGrid"></div>
+</div>
+
+<!-- SEMANA -->
+<div id="tabSemana" style="display:none" class="wk-wrap">
+  <div class="wk-nav">
+    <button onclick="changeWeek(-1)">← Ant.</button>
+    <span id="wkLabel"></span>
+    <button onclick="changeWeek(1)">Sig. →</button>
+  </div>
+  <div id="wkCards"></div>
+</div>
+
+<!-- EVENTOS -->
+<div id="tabEventos" style="display:none" class="ev-wrap">
+  <div class="ev-month-title" id="evMonthTitle">Mayo 2026</div>
+  <div id="evList"></div>
+  <button class="add-ev-btn" onclick="openEventModal()">+ Agregar evento</button>
+</div>
+
+<!-- OPCIONES / EXPORTAR -->
+<div id="tabOpciones" style="display:none" class="exp-wrap">
+  <div class="exp-card">
+    <h3>📋 Copiar días</h3>
+    <p>Seleccionás un día origen, después marcás uno o varios días destino y aplicás los bloques de golpe.</p>
+    <button class="exp-btn copy-mode" onclick="startCopyMode()">Activar modo copiar</button>
+    <div class="copy-hint">Útil para aplicar la rutina de lunes a todos los lunes del mes, por ejemplo.</div>
+  </div>
+  <div class="exp-card">
+    <h3>📤 Compartir por WhatsApp</h3>
+    <p>Genera un resumen del mes en texto y lo abre directamente en WhatsApp para enviarle a Vicky.</p>
+    <button class="exp-btn whatsapp" onclick="shareWhatsApp()">Compartir resumen</button>
+  </div>
+  <div class="exp-card">
+    <h3>🖨️ Exportar a PDF</h3>
+    <p>Abre la vista de impresión del mes para guardar como PDF desde el navegador.</p>
+    <button class="exp-btn pdf" onclick="exportPDF()">Exportar PDF</button>
+  </div>
+</div>
+
+<!-- MODAL DÍA -->
+<div class="ov" id="dayOv" onclick="closeDayModal(event)">
+  <div class="modal" id="dayModal">
+    <div class="mhandle"></div>
+    <div class="mhdr">
+      <h2 id="mTitle">—</h2>
+      <div class="ms" id="mSub">—</div>
+    </div>
+    <div class="mbody">
+      <div id="holBanner" class="hol-banner" style="display:none">🟡 <span id="holText"></span></div>
+      <div class="sec-title">Bloques horarios</div>
+      <div id="blkContainer"></div>
+      <div class="day-tot">
+        <div class="dti abel"><div class="dtv" id="dtA">0h</div><div class="dtl">Abel</div></div>
+        <div class="dti vicky"><div class="dtv" id="dtV">0h</div><div class="dtl">Vicky</div></div>
+      </div>
+      <div class="note-sec">
+        <label>Nota del día</label>
+        <textarea id="noteInp" placeholder="Acuerdo, compensación, recordatorio..."></textarea>
+      </div>
+      <div class="ev-sec">
+        <div class="sec-title" style="margin-top:4px">Eventos del día</div>
+        <div id="evListModal"></div>
+        <div class="ev-add-row">
+          <input class="ev-input" id="evInp" placeholder="Ej: Terapia, Cita médica..." onkeydown="if(event.key==='Enter')addEventFromModal()">
+          <button class="ev-add-btn" onclick="addEventFromModal()">+</button>
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveDay()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EVENTO -->
+<div class="ov" id="evOv" onclick="closeEvModal(event)">
+  <div class="emod">
+    <div class="mhandle"></div>
+    <div class="mhdr"><h2>Nuevo evento</h2></div>
+    <div class="mbody">
+      <label>Título</label>
+      <input id="evTitle" placeholder="Ej: Terapia de lenguaje, Cumpleaños...">
+      <label>Día</label>
+      <input id="evDay" type="number" min="1" max="31" placeholder="Día del mes">
+      <label>Hora (opcional)</label>
+      <input id="evTime" type="time">
+      <label>Tipo</label>
+      <select id="evType">
+        <option value="médica">🏥 Cita médica</option>
+        <option value="terapia">🧠 Terapia</option>
+        <option value="cumpleaños">🎂 Cumpleaños</option>
+        <option value="escolar">📚 Escolar</option>
+        <option value="otro">📌 Otro</option>
+      </select>
+      <button class="ev-save-btn" onclick="saveEvent()">Guardar evento</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const DS=['L','M','M','J','V','S','D'];
+const BLOCKS=[{l:'0:00 – 12:30',h:12.5},{l:'12:30 – 15:00',h:2.5},{l:'15:00 – 16:30',h:1.5},{l:'16:30 – 00:00',h:7.5}];
+const HOLIDAYS={'2026-05-01':'Día del Trabajo','2026-05-25':'Día de la Patria'};
+const EV_ICONS={médica:'🏥',terapia:'🧠',cumpleaños:'🎂',escolar:'📚',otro:'📌'};
+
+let Y=2026,M=4,curTab='mes',curWeek=0;
+let copyMode=false,copySrc=null,copyDsts=[];
+let editDay=null,tmpBlocks=[],tmpEvents=[];
+
+function sk(y,m){return`cuidados_${y}_${m}`}
+function esk(y,m){return`events_${y}_${m}`}
+function load(y,m){try{const r=localStorage.getItem(sk(y,m));return r?JSON.parse(r):{}}catch{return{}}}
+function save(y,m,d){try{localStorage.setItem(sk(y,m),JSON.stringify(d))}catch{}}
+function loadEv(y,m){try{const r=localStorage.getItem(esk(y,m));return r?JSON.parse(r):[]}catch{return[]}}
+function saveEv(y,m,d){try{localStorage.setItem(esk(y,m),JSON.stringify(d))}catch{}}
+
+let monthData=load(Y,M);
+let evData=loadEv(Y,M);
+
+function wk(d){return Math.floor((d-1)/7)}
+function defCov(day,wd){
+  const aw=wk(day)%2===0;
+  if(wd===0)return['v','v','v','v'];
+  if(wd===1)return['v','v','v','a'];
+  if(wd===2)return['a','a','a','a'];
+  if(wd===3)return['a','a','a','v'];
+  return aw?['a','a','a','a']:['v','v','v','v'];
+}
+function defNote(wd){
+  if(wd===1)return'Cole → Abel 16:30';
+  if(wd===3)return'Abel → Vicky 16:30';
+  if(wd===0)return'Vicky retira 15:00';
+  return'';
+}
+function getDayData(day){
+  const wd=getWD(day);
+  return monthData[day]||{blocks:defCov(day,wd),note:defNote(wd)};
+}
+function getDayEvents(day){return evData.filter(e=>e.day===day)}
+function getWD(day){return(new Date(Y,M,day).getDay()+6)%7}
+function dKey(y,m,d){return`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
+function owner(blk){const a=blk.filter(b=>b==='a').length;return a===4?'abel':a===0?'vicky':'mixed'}
+function hrs(blk){let a=0,v=0;blk.forEach((b,i)=>{if(b==='a')a+=BLOCKS[i].h;else v+=BLOCKS[i].h});return{a,v}}
+function daysInMonth(){return new Date(Y,M+1,0).getDate()}
+
+// SUMMARY
+function updateSummary(){
+  let tA=0,tV=0;
+  for(let d=1;d<=daysInMonth();d++){const{a,v}=hrs(getDayData(d).blocks);tA+=a;tV+=v}
+  const s=tA-tV;
+  document.getElementById('sA').textContent=tA.toFixed(1);
+  document.getElementById('sV').textContent=tV.toFixed(1);
+  document.getElementById('sBal').textContent=(s>=0?'+':'')+s.toFixed(1);
+  const el=document.getElementById('siBal');
+  el.className='si bal'+(s<0?' neg':'');
+}
+
+// CALENDAR
+function renderCalendar(){
+  const grid=document.getElementById('calGrid');
+  grid.innerHTML='';
+  const dim=daysInMonth();
+  const first=(new Date(Y,M,1).getDay()+6)%7;
+  const today=new Date();
+  for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cd empty';grid.appendChild(e)}
+  for(let d=1;d<=dim;d++){
+    const wd=getWD(d);
+    const dd=getDayData(d);
+    const ow=owner(dd.blocks);
+    const isH=!!HOLIDAYS[dKey(Y,M,d)];
+    const isT=(today.getFullYear()===Y&&today.getMonth()===M&&today.getDate()===d);
+    const dayEvs=getDayEvents(d);
+    let cls=`cd ${isH?'holiday':ow}${isT?' today':''}`;
+    if(copyMode&&copySrc===d)cls+=' copy-src';
+    if(copyMode&&copyDsts.includes(d))cls+=' copy-dst';
+    const el=document.createElement('div');
+    el.className=cls;
+    const dots=(dd.note?'<span class="dot note"></span>':'')+(dayEvs.length?'<span class="dot event"></span>':'');
+    el.innerHTML=`<span class="dn">${d}</span><span class="di">${DS[wd]}</span>${dots?`<div class="dots">${dots}</div>`:''}`;
+    el.onclick=()=>handleCalClick(d);
+    grid.appendChild(el);
+  }
+}
+
+// COPY MODE
+function startCopyMode(){
+  copyMode=true;copySrc=null;copyDsts=[];
+  setTab('mes');
+  document.getElementById('copyBanner').classList.add('show');
+  document.getElementById('copyBannerInfo').textContent='Tocá el día origen (el que querés copiar)';
+  render();
+}
+function cancelCopy(){
+  copyMode=false;copySrc=null;copyDsts=[];
+  document.getElementById('copyBanner').classList.remove('show');
+  render();
+}
+function handleCalClick(d){
+  if(!copyMode){openDayModal(d);return}
+  if(copySrc===null){
+    copySrc=d;
+    document.getElementById('copyBannerInfo').textContent=`Origen: día ${d}. Ahora tocá los días destino`;
+    renderCalendar();return;
+  }
+  if(d===copySrc)return;
+  if(copyDsts.includes(d)){copyDsts=copyDsts.filter(x=>x!==d)}
+  else copyDsts.push(d);
+  const n=copyDsts.length;
+  document.getElementById('copyBannerText').textContent=`${n} día${n!==1?'s':''} seleccionado${n!==1?'s':''}`;
+  document.getElementById('copyBannerInfo').textContent=`Toca más días o presiona Aplicar`;
+  // show apply button
+  const btn=document.querySelector('.copy-banner button');
+  if(n>0){
+    btn.textContent='Aplicar';
+    btn.onclick=applyCopy;
+  }else{
+    btn.textContent='Cancelar';
+    btn.onclick=cancelCopy;
+  }
+  renderCalendar();
+}
+function applyCopy(){
+  if(!copySrc||!copyDsts.length)return;
+  const src=getDayData(copySrc);
+  copyDsts.forEach(d=>{
+    monthData[d]={blocks:[...src.blocks],note:monthData[d]?.note||defNote(getWD(d))};
+  });
+  save(Y,M,monthData);
+  cancelCopy();
+  render();
+}
+
+// WEEK
+function getWeeks(){
+  const dim=daysInMonth();const weeks=[];let w=[];
+  for(let d=1;d<=dim;d++){
+    const wd=getWD(d);w.push(d);
+    if(wd===6||d===dim){weeks.push([...w]);w=[];}
+  }
+  return weeks;
+}
+function renderWeek(){
+  const weeks=getWeeks();
+  if(curWeek>=weeks.length)curWeek=weeks.length-1;
+  if(curWeek<0)curWeek=0;
+  document.getElementById('wkLabel').textContent=`Semana ${curWeek+1} de ${weeks.length}`;
+  const cont=document.getElementById('wkCards');cont.innerHTML='';
+  weeks[curWeek].forEach(d=>{
+    const wd=getWD(d);const dd=getDayData(d);
+    const ow=owner(dd.blocks);const{a,v}=hrs(dd.blocks);
+    const isH=!!HOLIDAYS[dKey(Y,M,d)];
+    const cls=isH?'holiday':ow;
+    const who=isH?'🟡 Feriado':ow==='abel'?'Abel':ow==='vicky'?'Vicky':'Mixto';
+    const blLabel=dd.blocks.map((b,i)=>`${BLOCKS[i].l.split('–')[0].trim()}: ${b==='a'?'Abel':'Vicky'}`).join(' · ');
+    const dayEvs=getDayEvents(d);
+    const c=document.createElement('div');
+    c.className=`dc ${cls}`;
+    c.innerHTML=`<div class="dc-inner">
+      <div class="db ${cls}"><span class="dbn">${d}</span><span class="dbd">${DS[wd]}</span></div>
+      <div class="di-info">
+        <div class="di-who">${DAYS[wd]} — ${who}</div>
+        <div class="di-bl">${blLabel}</div>
+        ${dd.note?`<div class="di-note">📝 ${dd.note}</div>`:''}
+        ${dayEvs.map(e=>`<div class="di-ev">${EV_ICONS[e.type]||'📌'} ${e.title}${e.time?' '+e.time:''}</div>`).join('')}
+      </div>
+      <div class="dh"><div class="dhl">Abel</div><div class="dha">${a}h</div><div class="dhl">Vicky</div><div class="dhv">${v}h</div></div>
+    </div>`;
+    c.onclick=()=>openDayModal(d);
+    cont.appendChild(c);
+  });
+}
+function changeWeek(dir){const w=getWeeks();curWeek=Math.max(0,Math.min(w.length-1,curWeek+dir));renderWeek()}
+
+// EVENTS TAB
+function renderEvents(){
+  document.getElementById('evMonthTitle').textContent=`${MONTHS[M]} ${Y}`;
+  const list=document.getElementById('evList');list.innerHTML='';
+  if(!evData.length){list.innerHTML='<div class="ev-empty">No hay eventos este mes.<br>Agregá citas, terapias, cumpleaños...</div>';return}
+  const sorted=[...evData].sort((a,b)=>a.day-b.day);
+  sorted.forEach((ev,i)=>{
+    const card=document.createElement('div');card.className='ev-card';
+    card.innerHTML=`
+      <div class="ev-date-badge"><div class="edn">${ev.day}</div><div class="edm">${MONTHS[M].slice(0,3)}</div></div>
+      <div class="ev-info">
+        <div class="eit">${EV_ICONS[ev.type]||'📌'} ${ev.title}</div>
+        <div class="eis">${DAYS[getWD(ev.day)]}${ev.time?' · '+ev.time:''} · ${ev.type}</div>
+      </div>
+      <button class="ev-del" onclick="deleteEvent(${i})">×</button>`;
+    list.appendChild(card);
+  });
+}
+function deleteEvent(i){evData.splice(i,1);saveEv(Y,M,evData);renderEvents();renderCalendar();if(curTab==='semana')renderWeek()}
+
+// DAY MODAL
+function openDayModal(day){
+  if(copyMode)return;
+  editDay=day;
+  const wd=getWD(day);
+  const dd=getDayData(day);
+  tmpBlocks=[...dd.blocks];
+  tmpEvents=getDayEvents(day).map(e=>({...e}));
+  const isH=HOLIDAYS[dKey(Y,M,day)];
+  document.getElementById('mTitle').textContent=`${DAYS[wd]} ${day}`;
+  document.getElementById('mSub').textContent=`${MONTHS[M]} ${Y}`;
+  document.getElementById('holBanner').style.display=isH?'flex':'none';
+  document.getElementById('holText').textContent=isH||'';
+  document.getElementById('noteInp').value=dd.note||'';
+  document.getElementById('evInp').value='';
+  renderModalBlocks();renderModalEvents();updateModalTot();
+  document.getElementById('dayOv').classList.add('open');
+}
+function renderModalBlocks(){
+  const c=document.getElementById('blkContainer');c.innerHTML='';
+  BLOCKS.forEach((bd,i)=>{
+    const r=document.createElement('div');r.className='blk-row';
+    r.innerHTML=`<span class="bt">${bd.l}</span><span class="bh">${bd.h}h</span>
+      <div class="btog">
+        <button class="ob ${tmpBlocks[i]==='a'?'oa':''}" onclick="setBlk(${i},'a')">Abel</button>
+        <button class="ob ${tmpBlocks[i]==='v'?'ov':''}" onclick="setBlk(${i},'v')">Vicky</button>
+      </div>`;
+    c.appendChild(r);
+  });
+}
+function setBlk(i,o){tmpBlocks[i]=o;renderModalBlocks();updateModalTot()}
+function updateModalTot(){let a=0,v=0;tmpBlocks.forEach((b,i)=>{if(b==='a')a+=BLOCKS[i].h;else v+=BLOCKS[i].h});document.getElementById('dtA').textContent=a+'h';document.getElementById('dtV').textContent=v+'h'}
+function renderModalEvents(){
+  const c=document.getElementById('evListModal');c.innerHTML='';
+  tmpEvents.forEach((ev,i)=>{
+    const el=document.createElement('div');el.className='ev-item-modal';
+    el.innerHTML=`<span class="eip">${EV_ICONS[ev.type]||'📌'} ${ev.title}${ev.time?' '+ev.time:''}</span><button onclick="removeTmpEvent(${i})">×</button>`;
+    c.appendChild(el);
+  });
+}
+function addEventFromModal(){
+  const v=document.getElementById('evInp').value.trim();
+  if(!v)return;
+  tmpEvents.push({title:v,day:editDay,type:'otro',time:''});
+  document.getElementById('evInp').value='';
+  renderModalEvents();
+}
+function removeTmpEvent(i){tmpEvents.splice(i,1);renderModalEvents()}
+function saveDay(){
+  monthData[editDay]={blocks:[...tmpBlocks],note:document.getElementById('noteInp').value.trim()};
+  save(Y,M,monthData);
+  evData=evData.filter(e=>e.day!==editDay).concat(tmpEvents);
+  saveEv(Y,M,evData);
+  closeDayModal();render();
+}
+function closeDayModal(e){if(e&&e.target!==document.getElementById('dayOv'))return;document.getElementById('dayOv').classList.remove('open')}
+
+// EVENT MODAL
+function openEventModal(){document.getElementById('evOv').classList.add('open')}
+function closeEvModal(e){if(e&&e.target!==document.getElementById('evOv'))return;document.getElementById('evOv').classList.remove('open')}
+function saveEvent(){
+  const t=document.getElementById('evTitle').value.trim();
+  const d=parseInt(document.getElementById('evDay').value);
+  const time=document.getElementById('evTime').value;
+  const type=document.getElementById('evType').value;
+  if(!t||!d||d<1||d>daysInMonth())return;
+  evData.push({title:t,day:d,time,type});
+  saveEv(Y,M,evData);
+  document.getElementById('evTitle').value='';
+  document.getElementById('evDay').value='';
+  document.getElementById('evTime').value='';
+  document.getElementById('evOv').classList.remove('open');
+  renderEvents();renderCalendar();if(curTab==='semana')renderWeek();
+}
+
+// SHARE WHATSAPP
+function shareWhatsApp(){
+  const dim=daysInMonth();
+  let msg=`*Cuidados ${MONTHS[M]} ${Y}*\n\n`;
+  for(let d=1;d<=dim;d++){
+    const wd=getWD(d);const dd=getDayData(d);
+    const{a,v}=hrs(dd.blocks);const ow=owner(dd.blocks);
+    const evs=getDayEvents(d);
+    const who=ow==='abel'?'Abel':ow==='vicky'?'Vicky':'Mixto';
+    const hol=HOLIDAYS[dKey(Y,M,d)]?'🟡':'';
+    msg+=`${hol}*${d}/${M+1} ${DS[wd]}* — ${who} (A:${a}h V:${v}h)`;
+    if(dd.note)msg+=`\n  📝 ${dd.note}`;
+    evs.forEach(e=>msg+=`\n  ${EV_ICONS[e.type]||'📌'} ${e.title}${e.time?' '+e.time:''}`);
+    msg+='\n';
+  }
+  let tA=0,tV=0;
+  for(let d=1;d<=dim;d++){const{a,v}=hrs(getDayData(d).blocks);tA+=a;tV+=v}
+  msg+=`\n*Total mes:* Abel ${tA}h (${(tA/7.44).toFixed(1)}%) · Vicky ${tV}h (${(tV/7.44).toFixed(1)}%)`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+
+// EXPORT PDF
+function exportPDF(){
+  const dim=daysInMonth();
+  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cuidados ${MONTHS[M]} ${Y}</title>
+  <style>body{font-family:Arial,sans-serif;padding:20px;max-width:700px;margin:0 auto}
+  h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;font-weight:400;margin-bottom:20px}
+  table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px}
+  th{background:#f0f0f0;font-weight:600}.abel{background:#E8EFFE}.vicky{background:#FDEDF3}
+  .mixed{background:#EDE9FF}.holiday{background:#FEF3C7}
+  .foot{margin-top:16px;font-size:12px;color:#444}
+  @media print{body{padding:10px}}</style></head><body>
+  <h1>Cuidados — ${MONTHS[M]} ${Y}</h1><h2>Planilla de cuidados compartidos</h2>
+  <table><tr><th>Día</th><th>Fecha</th><th>Cuidado</th><th>Hs Abel</th><th>Hs Vicky</th><th>Nota</th></tr>`;
+  let tA=0,tV=0;
+  for(let d=1;d<=dim;d++){
+    const wd=getWD(d);const dd=getDayData(d);
+    const{a,v}=hrs(dd.blocks);const ow=owner(dd.blocks);
+    const isH=!!HOLIDAYS[dKey(Y,M,d)];
+    const cls=isH?'holiday':ow;
+    const who=isH?'🟡 Feriado':ow==='abel'?'Abel':ow==='vicky'?'Vicky':'Mixto';
+    const evs=getDayEvents(d).map(e=>`${EV_ICONS[e.type]} ${e.title}`).join(', ');
+    const note=[dd.note,evs].filter(Boolean).join(' | ');
+    tA+=a;tV+=v;
+    html+=`<tr class="${cls}"><td><b>${DAYS[wd].slice(0,3)}</b></td><td>${d}/${M+1}</td><td>${who}</td><td>${a}h</td><td>${v}h</td><td style="font-size:11px">${note}</td></tr>`;
+  }
+  html+=`</table><div class="foot"><b>Total mes:</b> Abel ${tA}h (${(tA/7.44).toFixed(1)}%) · Vicky ${tV}h (${(tV/7.44).toFixed(1)}%)</div></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();
+  setTimeout(()=>w.print(),400);
+}
+
+// NAV
+function changeMonth(dir){
+  M+=dir;if(M>11){M=0;Y++}if(M<0){M=11;Y--}
+  monthData=load(Y,M);evData=loadEv(Y,M);
+  curWeek=0;cancelCopy();
+  document.getElementById('mlabel').textContent=`${MONTHS[M]} ${Y}`;
+  render();
+}
+function setTab(t){
+  curTab=t;
+  ['mes','semana','eventos','opciones'].forEach(n=>{
+    document.getElementById('tab'+n.charAt(0).toUpperCase()+n.slice(1)).style.display=n===t?'':'none';
+  });
+  document.querySelectorAll('.tab').forEach((b,i)=>{
+    b.classList.toggle('active',['mes','semana','eventos','opciones'][i]===t);
+  });
+  render();
+}
+
+function render(){
+  updateSummary();
+  if(curTab==='mes')renderCalendar();
+  if(curTab==='semana')renderWeek();
+  if(curTab==='eventos')renderEvents();
+}
+
+// init current week
+const td=new Date();
+if(td.getFullYear()===Y&&td.getMonth()===M){
+  getWeeks().forEach((w,i)=>{if(w.includes(td.getDate()))curWeek=i});
+}
+render();
+</script>
+</body>
+</html>
