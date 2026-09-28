@@ -1,7 +1,7 @@
 {
-  "name": "Cuidados",
-  "short_name": "Cuidados",
-  "description": "Calendario compartido de cuidado del hijo",
+  "name": "Dante",
+  "short_name": "Dante",
+  "description": "Calendario compartido de cuidado de Dante",
   "start_url": "./index.html?fam=dante",
   "display": "standalone",
   "background_color": "#f7f6f3",
