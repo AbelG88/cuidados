@@ -500,6 +500,19 @@
     <button class="menu-item" id="importProposalBtn">📥 Importar respaldo</button>
     <button class="menu-item" id="deleteMonthBtn" style="color:#c0392b;">🗑️ Borrar mes actual</button>
     <button class="menu-item" id="checkOverlapsBtn">⚠️ Verificar superposiciones</button>
+    <button class="menu-item" id="checkCoverageBtn">📊 Validar cobertura del mes</button>
+  </div>
+
+  <!-- Modal validación de cobertura mensual -->
+  <div id="coverageModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;overflow-y:auto;padding:20px 12px;">
+    <div style="background:var(--card);border-radius:14px;max-width:520px;margin:0 auto;padding:20px;">
+      <h3 style="margin:0 0 4px;font-size:1.1rem;">📊 Cobertura del mes</h3>
+      <p id="coverageSubtitle" style="margin:0 0 14px;color:var(--muted);font-size:.85rem;"></p>
+      <div id="coverageBody"></div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+        <button id="coverageCloseBtn" style="padding:8px 18px;border:1px solid var(--line);background:none;border-radius:8px;cursor:pointer;">Cerrar</button>
+      </div>
+    </div>
   </div>
 
   <!-- Modal chequeador de superposiciones -->
@@ -2649,6 +2662,10 @@ function openOverlapModal(){
           style="flex:1;min-width:120px;padding:6px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.8rem;">
           🗑️ Eliminar bloque 🔴
         </button>
+        <button class="overlap-fix-btn" data-action="delete-a" data-idx="${idx}"
+          style="flex:1;min-width:120px;padding:6px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.8rem;">
+          🗑️ Eliminar bloque 🔵
+        </button>
       </div>`;
 
     // Guardar referencias en el card para acceder desde el listener
@@ -2681,6 +2698,8 @@ function openOverlapModal(){
       b.startTime = a.endTime;
     } else if(action === 'delete-b'){
       careBlocks = careBlocks.filter(cb => cb.id !== b.id);
+    } else if(action === 'delete-a'){
+      careBlocks = careBlocks.filter(cb => cb.id !== a.id);
     }
 
     list.removeEventListener('click', handleFixClick);
@@ -2700,6 +2719,101 @@ document.getElementById('checkOverlapsBtn').addEventListener('click', ()=>{
 });
 document.getElementById('overlapCloseBtn').addEventListener('click', ()=>{
   document.getElementById('overlapModal').style.display = 'none';
+});
+
+// ---------- Validación de cobertura mensual ----------
+function openCoverageModal(){
+  // Mes actual del calendario
+  const year  = currentYear;
+  const month = currentMonth; // 0-based
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const totalHours  = daysInMonth * 24;
+
+  const pad2 = n => String(n).padStart(2,'0');
+  const startStr = `${year}-${pad2(month+1)}-01`;
+  const endStr   = `${year}-${pad2(month+1)}-${pad2(daysInMonth)}`;
+
+  const horasMama = categoryHoursInRange('mama', startStr, endStr);
+  const horasPapa = categoryHoursInRange('papa', startStr, endStr);
+  const sumaCargada = horasMama + horasPapa;
+
+  // Horas sin cobertura: días del mes donde ningún bloque toca ese día
+  let diasSinCobertura = 0;
+  let horasSinCobertura = 0;
+  for(let d=1; d<=daysInMonth; d++){
+    const ds = `${year}-${pad2(month+1)}-${pad2(d)}`;
+    const bloques = careBlocksForDay(ds);
+    if(bloques.length === 0){
+      diasSinCobertura++;
+      horasSinCobertura += 24;
+    }
+  }
+
+  const exceso = sumaCargada > totalHours ? sumaCargada - totalHours : 0;
+  const pctMama = totalHours > 0 ? (horasMama / totalHours * 100).toFixed(1) : '0';
+  const pctPapa = totalHours > 0 ? (horasPapa / totalHours * 100).toFixed(1) : '0';
+  const pctTotal = totalHours > 0 ? (sumaCargada / totalHours * 100).toFixed(1) : '0';
+
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const monthLabel = `${monthNames[month]} ${year}`;
+
+  document.getElementById('coverageSubtitle').textContent =
+    `${monthLabel} — ${daysInMonth} días = ${totalHours}h posibles`;
+
+  const fmt = h => {
+    const hh = Math.floor(h), mm = Math.round((h - hh)*60);
+    return mm > 0 ? `${hh}h ${mm}min` : `${hh}h`;
+  };
+
+  let html = `
+    <div style="display:grid;gap:8px;">
+      <div style="display:flex;justify-content:space-between;padding:10px 12px;background:#f0f4ff;border-radius:8px;">
+        <span style="color:var(--papa);font-weight:600;">👨 Papá</span>
+        <span>${fmt(horasPapa)} <span style="color:var(--muted);font-size:.8rem;">(${pctPapa}%)</span></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 12px;background:#fff0f5;border-radius:8px;">
+        <span style="color:var(--mama);font-weight:600;">👩 Mamá</span>
+        <span>${fmt(horasMama)} <span style="color:var(--muted);font-size:.8rem;">(${pctMama}%)</span></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-weight:600;">
+        <span>∑ Total cargado</span>
+        <span>${fmt(sumaCargada)} <span style="color:var(--muted);font-size:.8rem;">(${pctTotal}%)</span></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:10px 12px;background:#f5f5f5;border-radius:8px;">
+        <span style="color:var(--muted);">🕐 Horas del mes</span>
+        <span style="color:var(--muted);">${totalHours}h</span>
+      </div>`;
+
+  if(exceso > 0){
+    html += `
+      <div style="padding:10px 12px;background:#fdecea;border:1px solid #e74c3c;border-radius:8px;color:#c0392b;">
+        ⚠️ <b>Exceso de ${fmt(exceso)}</b> — la suma de bloques supera las horas reales del mes.<br>
+        <span style="font-size:.82rem;">Esto pasa cuando hay superposiciones. Usá "Verificar superposiciones" para corregirlas.</span>
+      </div>`;
+  } else if(diasSinCobertura > 0){
+    html += `
+      <div style="padding:10px 12px;background:#fffbe6;border:1px solid #f39c12;border-radius:8px;color:#856404;">
+        📅 <b>${diasSinCobertura} día${diasSinCobertura>1?'s':''} sin ningún bloque</b> (~${fmt(horasSinCobertura)} sin cobertura).<br>
+        <span style="font-size:.82rem;">No necesariamente es error, pero conviene revisarlo.</span>
+      </div>`;
+  } else {
+    html += `
+      <div style="padding:10px 12px;background:#eafaf1;border:1px solid #27ae60;border-radius:8px;color:#1e8449;">
+        ✅ <b>Cobertura coherente</b> — todo el mes tiene bloques y la suma no supera el máximo posible.
+      </div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('coverageBody').innerHTML = html;
+  document.getElementById('coverageModal').style.display = 'block';
+}
+
+document.getElementById('checkCoverageBtn').addEventListener('click', ()=>{
+  document.getElementById('moreOptionsMenu').style.display = 'none';
+  openCoverageModal();
+});
+document.getElementById('coverageCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('coverageModal').style.display = 'none';
 });
 
 // El script de Firebase es un módulo y carga en forma asíncrona, así que puede
