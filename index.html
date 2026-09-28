@@ -499,6 +499,19 @@
     <button class="menu-item" id="exportProposalBtn">💾 Exportar respaldo completo</button>
     <button class="menu-item" id="importProposalBtn">📥 Importar respaldo</button>
     <button class="menu-item" id="deleteMonthBtn" style="color:#c0392b;">🗑️ Borrar mes actual</button>
+    <button class="menu-item" id="checkOverlapsBtn">⚠️ Verificar superposiciones</button>
+  </div>
+
+  <!-- Modal chequeador de superposiciones -->
+  <div id="overlapModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;overflow-y:auto;padding:20px 12px;">
+    <div style="background:var(--card);border-radius:14px;max-width:520px;margin:0 auto;padding:20px;">
+      <h3 style="margin:0 0 4px;font-size:1.1rem;">⚠️ Superposiciones detectadas</h3>
+      <p id="overlapSubtitle" style="margin:0 0 14px;color:var(--muted);font-size:.85rem;"></p>
+      <div id="overlapList"></div>
+      <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+        <button id="overlapCloseBtn" style="padding:8px 18px;border:1px solid var(--line);background:none;border-radius:8px;cursor:pointer;">Cerrar</button>
+      </div>
+    </div>
   </div>
   <input type="file" id="importFileInput" accept=".json" style="display:none;">
 
@@ -2558,6 +2571,135 @@ document.getElementById('confirmPinBtn').addEventListener('click', ()=>{
   } else {
     document.getElementById('pinError').style.display = 'block';
   }
+});
+
+// ---------- Chequeador de superposiciones ----------
+function detectOverlaps(){
+  // Devuelve lista de pares [blockA, blockB] que se solapan en tiempo
+  const pairs = [];
+  const sorted = [...careBlocks].sort((a,b)=>toDateTime(a.startDate,a.startTime)-toDateTime(b.startDate,b.startTime));
+  for(let i=0;i<sorted.length;i++){
+    const a = sorted[i];
+    const aStart = toDateTime(a.startDate, a.startTime);
+    const aEnd   = toDateTime(a.endDate,   a.endTime);
+    for(let j=i+1;j<sorted.length;j++){
+      const b = sorted[j];
+      const bStart = toDateTime(b.startDate, b.startTime);
+      const bEnd   = toDateTime(b.endDate,   b.endTime);
+      if(bStart >= aEnd) break; // sorted: si B empieza después de A termina, ninguno más solapará con A
+      // Hay solapamiento si bStart < aEnd && bEnd > aStart (ya sabemos bStart < aEnd)
+      if(bEnd > aStart) pairs.push([a, b]);
+    }
+  }
+  return pairs;
+}
+
+function fmtBlock(cb){
+  const catLabel = cb.category==='mama'?'Mamá':'Papá';
+  const color    = cb.category==='mama'?'var(--mama)':'var(--papa)';
+  return `<span style="color:${color};font-weight:600;">${catLabel}</span> `
+       + `${cb.startDate} ${cb.startTime}→${cb.endDate} ${cb.endTime}`;
+}
+
+function openOverlapModal(){
+  if(isReadOnly){ alert('Activá el modo edición (PIN) para corregir superposiciones.'); return; }
+  const pairs = detectOverlaps();
+  const subtitle = document.getElementById('overlapSubtitle');
+  const list     = document.getElementById('overlapList');
+  list.innerHTML = '';
+
+  if(pairs.length === 0){
+    subtitle.textContent = '¡Todo en orden! No hay bloques superpuestos.';
+    document.getElementById('overlapModal').style.display = 'block';
+    return;
+  }
+
+  subtitle.textContent = `Se encontraron ${pairs.length} superposición${pairs.length>1?'es':''}.`;
+
+  pairs.forEach(([a, b], idx)=>{
+    const aStart = toDateTime(a.startDate, a.startTime);
+    const aEnd   = toDateTime(a.endDate,   a.endTime);
+    const bStart = toDateTime(b.startDate, b.startTime);
+    const bEnd   = toDateTime(b.endDate,   b.endTime);
+
+    // Calcular la ventana de solapamiento
+    const overStart = aStart > bStart ? aStart : bStart;
+    const overEnd   = aEnd   < bEnd   ? aEnd   : bEnd;
+    const overMins  = Math.round((overEnd - overStart) / 60000);
+    const overLabel = overMins >= 60
+      ? `${Math.floor(overMins/60)}h${overMins%60>0?' '+overMins%60+'min':''}`
+      : `${overMins} min`;
+
+    const card = document.createElement('div');
+    card.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;font-size:.85rem;';
+    card.innerHTML = `
+      <div style="margin-bottom:6px;"><b>#${idx+1}</b> — solapamiento de <b>${overLabel}</b></div>
+      <div>🔵 ${fmtBlock(a)}</div>
+      <div>🔴 ${fmtBlock(b)}</div>
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="overlap-fix-btn" data-action="trim-a" data-idx="${idx}"
+          style="flex:1;min-width:120px;padding:6px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:.8rem;">
+          ✂️ Recortar bloque 🔵
+        </button>
+        <button class="overlap-fix-btn" data-action="trim-b" data-idx="${idx}"
+          style="flex:1;min-width:120px;padding:6px;border:1px solid var(--line);border-radius:7px;cursor:pointer;font-size:.8rem;">
+          ✂️ Recortar bloque 🔴
+        </button>
+        <button class="overlap-fix-btn" data-action="delete-b" data-idx="${idx}"
+          style="flex:1;min-width:120px;padding:6px;border:1px solid #c0392b;color:#c0392b;border-radius:7px;cursor:pointer;font-size:.8rem;">
+          🗑️ Eliminar bloque 🔴
+        </button>
+      </div>`;
+
+    // Guardar referencias en el card para acceder desde el listener
+    card._overlapA = a;
+    card._overlapB = b;
+    card._overlapOverEnd = overEnd;
+    card._overlapOverStart = overStart;
+    list.appendChild(card);
+  });
+
+  // Event delegation en la lista (una sola vez, sin acumulación)
+  async function handleFixClick(e){
+    const btn = e.target.closest('.overlap-fix-btn');
+    if(!btn) return;
+    // buscar el card padre con _overlapA
+    let c = btn.parentElement;
+    while(c && !c._overlapA) c = c.parentElement;
+    if(!c) return;
+    const a = c._overlapA, b = c._overlapB;
+    const action = btn.dataset.action;
+
+    const pad = n => String(n).padStart(2,'0');
+    function toDateStr(d){ return d.toISOString().slice(0,10); }
+
+    if(action === 'trim-a'){
+      a.endDate = toDateStr(toDateTime(b.startDate, b.startTime));
+      a.endTime = b.startTime;
+    } else if(action === 'trim-b'){
+      b.startDate = toDateStr(toDateTime(a.endDate, a.endTime));
+      b.startTime = a.endTime;
+    } else if(action === 'delete-b'){
+      careBlocks = careBlocks.filter(cb => cb.id !== b.id);
+    }
+
+    list.removeEventListener('click', handleFixClick);
+    await persistAll();
+    renderCalendar();
+    // Reabrir el modal con lista actualizada
+    openOverlapModal();
+  }
+  list.addEventListener('click', handleFixClick);
+
+  document.getElementById('overlapModal').style.display = 'block';
+}
+
+document.getElementById('checkOverlapsBtn').addEventListener('click', ()=>{
+  document.getElementById('moreOptionsMenu').style.display = 'none';
+  openOverlapModal();
+});
+document.getElementById('overlapCloseBtn').addEventListener('click', ()=>{
+  document.getElementById('overlapModal').style.display = 'none';
 });
 
 // El script de Firebase es un módulo y carga en forma asíncrona, así que puede
