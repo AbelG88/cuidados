@@ -408,6 +408,48 @@
     font-size:.85rem;
     padding:16px;
   }
+
+  /* ---- Vista semanal ---- */
+  .week-view-grid{
+    background:var(--card);
+    border-radius:12px;
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .week-day-row{
+    border-bottom:1px solid var(--line);
+    padding:10px 12px;
+    cursor:pointer;
+    transition:background .1s;
+  }
+  .week-day-row:last-child{border-bottom:none;}
+  .week-day-row:hover{background:#faf8f5;}
+  .week-day-row.care-mama{border-left:4px solid var(--mama);}
+  .week-day-row.care-papa{border-left:4px solid var(--papa);}
+  .week-day-row.care-split{border-left:4px solid #9b59b6;}
+  .week-day-row.today-row{background:#fff8f0;}
+  .week-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+  .week-day-name{font-weight:700;font-size:.92rem;}
+  .week-day-date{font-size:.75rem;color:var(--muted);}
+  .week-care-bar{
+    display:flex;height:18px;border-radius:4px;overflow:hidden;margin:4px 0;background:#f0ede8;
+  }
+  .week-care-seg{height:100%;}
+  .week-care-seg.mama{background:var(--mama);opacity:.75;}
+  .week-care-seg.papa{background:var(--papa);opacity:.75;}
+  .week-care-seg.gap{background:#e0dbd3;}
+  .week-events-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;}
+  .week-event-chip{font-size:.7rem;padding:2px 7px;border-radius:10px;background:#ede9e3;color:var(--ink);}
+  .week-hours-row{font-size:.72rem;color:var(--muted);margin-top:3px;}
+
+  /* ---- Modo copia ---- */
+  .copy-action-btn{
+    padding:6px 12px;border-radius:8px;border:none;background:rgba(255,255,255,.25);
+    color:#fff;font-size:.78rem;font-weight:600;cursor:pointer;
+  }
+  .copy-action-btn:hover{background:rgba(255,255,255,.4);}
+  .day-cell.copy-origin{outline:3px solid #e67e22;outline-offset:-2px;}
+  .day-cell.copy-dest-hover{outline:3px dashed #27ae60;outline-offset:-2px;}
 </style>
 </head>
 <body>
@@ -443,7 +485,11 @@
   </div>
 
   <div class="toolbar">
-    <button id="moreOptionsBtn" style="position:relative;">⋯ Más opciones</button>
+    <button id="viewToggleBtn">📅 Vista semana</button>
+    <button id="copyModeBtn">📋 Copiar</button>
+    <button id="moreOptionsBtn" style="position:relative;">⋯ Más</button>
+  </div>
+  <div class="toolbar" style="margin-top:-4px;">
     <button id="toggleActivitiesBtn">👁️ Ocultar actividades</button>
     <button id="manageTemplatesBtn">⚙️ Plantillas</button>
   </div>
@@ -456,12 +502,27 @@
   </div>
   <input type="file" id="importFileInput" accept=".json" style="display:none;">
 
-  <div class="calendar">
-    <div class="weekdays">
-      <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+  <!-- Banner modo copia -->
+  <div id="copyBanner" style="display:none;background:#e67e22;color:#fff;padding:10px 14px;border-radius:10px;margin-bottom:10px;font-size:.88rem;">
+    <b>📋 Modo copia</b> — <span id="copySourceLabel">Seleccioná el día/semana/mes origen</span><br>
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+      <button id="copySelectDayBtn" class="copy-action-btn">📆 Origen: día</button>
+      <button id="copySelectWeekBtn" class="copy-action-btn">📅 Origen: semana</button>
+      <button id="copySelectMonthBtn" class="copy-action-btn">🗓️ Origen: mes</button>
+      <button id="copyPasteBtn" class="copy-action-btn" style="display:none;background:#27ae60;">✅ Pegar aquí</button>
+      <button id="copyCancelBtn" class="copy-action-btn" style="background:rgba(0,0,0,.25);">✕ Cancelar</button>
     </div>
-    <div class="days-grid" id="daysGrid"></div>
   </div>
+
+  <div id="calendarView">
+    <div class="calendar">
+      <div class="weekdays">
+        <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
+      </div>
+      <div class="days-grid" id="daysGrid"></div>
+    </div>
+  </div>
+  <div id="weekView" style="display:none;"></div>
 </main>
 
 <button class="fab" id="addEventFab" style="bottom:22px;">+</button>
@@ -992,11 +1053,16 @@ function renderCalendar(){
     }
 
     cell.appendChild(mini);
-    cell.addEventListener('click', ()=>openDayModal(cellStr));
+    cell.addEventListener('click', ()=>{
+      if(copyMode) handleCopyClick(cellStr);
+      else openDayModal(cellStr);
+    });
     daysGrid.appendChild(cell);
   }
 
   renderSummary();
+  // Si estamos en vista semana, renderizarla también
+  if(typeof viewMode !== 'undefined' && viewMode==='week') renderWeekView();
 }
 
 // ---------- Resumen de horas ----------
@@ -1437,13 +1503,300 @@ document.getElementById('deleteEventBtn').addEventListener('click', async ()=>{
 
 // ---------- Navegación de mes ----------
 document.getElementById('prevMonth').addEventListener('click', ()=>{
-  currentDate.setMonth(currentDate.getMonth()-1);
+  if(viewMode === 'week'){
+    currentDate.setDate(currentDate.getDate()-7);
+  } else {
+    currentDate.setMonth(currentDate.getMonth()-1);
+  }
   renderCalendar();
 });
 document.getElementById('nextMonth').addEventListener('click', ()=>{
-  currentDate.setMonth(currentDate.getMonth()+1);
+  if(viewMode === 'week'){
+    currentDate.setDate(currentDate.getDate()+7);
+  } else {
+    currentDate.setMonth(currentDate.getMonth()+1);
+  }
   renderCalendar();
 });
+
+// ---------- Vista semanal ----------
+let viewMode = 'month'; // 'month' | 'week'
+
+function getWeekDays(d){
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day+6)%7)); // semana lun-dom
+  return Array.from({length:7}, (_,i)=>{
+    const dd = new Date(monday);
+    dd.setDate(monday.getDate()+i);
+    return dd;
+  });
+}
+
+function renderWeekView(){
+  const weekView = document.getElementById('weekView');
+  const days = getWeekDays(currentDate);
+  const todayStr = fmtDateStr(new Date());
+  const DAY_NAMES = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+  // Actualizar label del mes en header
+  const first = days[0], last = days[6];
+  const sameMonth = first.getMonth()===last.getMonth();
+  monthLabel.textContent = sameMonth
+    ? `${first.toLocaleDateString('es-ES',{day:'numeric'})} – ${last.toLocaleDateString('es-ES',{day:'numeric', month:'long', year:'numeric'})}`
+    : `${first.toLocaleDateString('es-ES',{day:'numeric',month:'short'})} – ${last.toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'})}`;
+
+  weekView.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'week-view-grid';
+
+  days.forEach(d=>{
+    const ds = fmtDateStr(d);
+    const coverage = dayCareCoverage(ds);
+    const blocks = careBlocksForDay(ds).sort((a,b)=>toDateTime(a.startDate,a.startTime)-toDateTime(b.startDate,b.startTime));
+    const dayEvs = events.filter(e=>eventCoversDate(e,ds)).sort((a,b)=>a.start.localeCompare(b.start));
+    const isSplit = coverage.cats.has('mama') && coverage.cats.has('papa');
+
+    const row = document.createElement('div');
+    let careClass = isSplit ? ' care-split' : coverage.cats.has('mama') ? ' care-mama' : coverage.cats.has('papa') ? ' care-papa' : '';
+    row.className = 'week-day-row' + careClass + (ds===todayStr?' today-row':'');
+    row.dataset.date = ds;
+
+    // Header: nombre día + fecha
+    const hdr = document.createElement('div');
+    hdr.className = 'week-day-header';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'week-day-name';
+    nameEl.textContent = DAY_NAMES[d.getDay()] + (ds===todayStr?' ← Hoy':'');
+    const dateEl = document.createElement('span');
+    dateEl.className = 'week-day-date';
+    dateEl.textContent = d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    hdr.appendChild(nameEl); hdr.appendChild(dateEl);
+    row.appendChild(hdr);
+
+    // Barra visual de cuidado (24h = 100%)
+    if(blocks.length>0){
+      const bar = document.createElement('div');
+      bar.className = 'week-care-bar';
+      const dayStartMs = toDateTime(ds,'00:00').getTime();
+      const dayTotalMs = 24*3600*1000;
+      let lastPct = 0;
+      blocks.forEach(cb=>{
+        const bStart = Math.max(toDateTime(cb.startDate,cb.startTime).getTime(), dayStartMs);
+        const bEnd = Math.min(toDateTime(cb.endDate,cb.endTime).getTime(), dayStartMs+dayTotalMs);
+        const startPct = (bStart-dayStartMs)/dayTotalMs*100;
+        const endPct = (bEnd-dayStartMs)/dayTotalMs*100;
+        if(startPct > lastPct){
+          const gap = document.createElement('div');
+          gap.className='week-care-seg gap';
+          gap.style.width=(startPct-lastPct)+'%';
+          bar.appendChild(gap);
+        }
+        const seg = document.createElement('div');
+        seg.className='week-care-seg '+cb.category;
+        seg.style.width=(endPct-startPct)+'%';
+        seg.title=`${cb.category==='mama'?'Mamá':'Papá'} ${cb.startTime}–${cb.endTime}`;
+        bar.appendChild(seg);
+        lastPct = endPct;
+      });
+      if(lastPct<100){
+        const gap = document.createElement('div');
+        gap.className='week-care-seg gap';
+        gap.style.width=(100-lastPct)+'%';
+        bar.appendChild(gap);
+      }
+      row.appendChild(bar);
+
+      // Horas del día
+      const mamaH = categoryHoursInRange('mama', ds, ds);
+      const papaH = categoryHoursInRange('papa', ds, ds);
+      const hoursRow = document.createElement('div');
+      hoursRow.className = 'week-hours-row';
+      hoursRow.textContent = `Mamá ${mamaH.toFixed(1)}h · Papá ${papaH.toFixed(1)}h`;
+      row.appendChild(hoursRow);
+    } else {
+      const nocare = document.createElement('div');
+      nocare.style.cssText = 'font-size:.72rem;color:var(--accent);margin-top:2px;';
+      nocare.textContent = '⚠ Sin cuidado asignado';
+      row.appendChild(nocare);
+    }
+
+    // Chips de eventos
+    if(showActivities && dayEvs.length>0){
+      const evRow = document.createElement('div');
+      evRow.className = 'week-events-list';
+      dayEvs.slice(0,4).forEach(ev=>{
+        const chip = document.createElement('span');
+        chip.className = 'week-event-chip';
+        chip.textContent = `${ev.start} ${ev.title}`;
+        evRow.appendChild(chip);
+      });
+      if(dayEvs.length>4){
+        const more = document.createElement('span');
+        more.className = 'week-event-chip';
+        more.textContent = `+${dayEvs.length-4}`;
+        evRow.appendChild(more);
+      }
+      row.appendChild(evRow);
+    }
+
+    row.addEventListener('click', ()=>openDayModal(ds));
+    if(copyMode) row.addEventListener('click', (e)=>{ e.stopPropagation(); handleCopyClick(ds); }, true);
+    grid.appendChild(row);
+  });
+
+  weekView.appendChild(grid);
+  renderSummary();
+}
+
+document.getElementById('viewToggleBtn').addEventListener('click', ()=>{
+  viewMode = viewMode==='month' ? 'week' : 'month';
+  document.getElementById('viewToggleBtn').textContent = viewMode==='month' ? '📅 Vista semana' : '🗓️ Vista mes';
+  document.getElementById('calendarView').style.display = viewMode==='month' ? '' : 'none';
+  document.getElementById('weekView').style.display = viewMode==='week' ? '' : 'none';
+  renderCalendar();
+});
+
+// ---------- Modo copia ----------
+let copyMode = false;
+let copySource = null;   // { type: 'day'|'week'|'month', dateStr, weekDays:[], monthStr }
+
+function enterCopyMode(){
+  copyMode = true;
+  copySource = null;
+  document.getElementById('copyBanner').style.display = 'block';
+  document.getElementById('copySourceLabel').textContent = 'Seleccioná tipo de origen y luego tocá el día en el calendario';
+  document.getElementById('copyPasteBtn').style.display = 'none';
+  document.getElementById('copyModeBtn').style.background = '#e67e22';
+  document.getElementById('copyModeBtn').style.color = '#fff';
+}
+
+function exitCopyMode(){
+  copyMode = false;
+  copySource = null;
+  document.getElementById('copyBanner').style.display = 'none';
+  document.getElementById('copyModeBtn').style.background = '';
+  document.getElementById('copyModeBtn').style.color = '';
+  // limpiar resaltados
+  document.querySelectorAll('.copy-origin,.copy-dest-hover').forEach(el=>el.classList.remove('copy-origin','copy-dest-hover'));
+  renderCalendar();
+}
+
+let copySelectType = 'day'; // tipo seleccionado (antes de clickear origen)
+['Day','Week','Month'].forEach(t=>{
+  document.getElementById(`copySelect${t}Btn`).addEventListener('click', ()=>{
+    copySelectType = t.toLowerCase();
+    ['Day','Week','Month'].forEach(tt=>{
+      document.getElementById(`copySelect${tt}Btn`).style.background = '';
+    });
+    document.getElementById(`copySelect${t}Btn`).style.background = 'rgba(255,255,255,.5)';
+    if(copySource){
+      // resetear origen si cambia el tipo
+      copySource = null;
+      document.getElementById('copyPasteBtn').style.display = 'none';
+      document.getElementById('copySourceLabel').textContent = 'Ahora tocá el origen en el calendario';
+    } else {
+      document.getElementById('copySourceLabel').textContent = 'Ahora tocá el origen en el calendario';
+    }
+  });
+});
+
+document.getElementById('copyCancelBtn').addEventListener('click', exitCopyMode);
+document.getElementById('copyModeBtn').addEventListener('click', ()=>{
+  if(copyMode) exitCopyMode();
+  else enterCopyMode();
+});
+
+function handleCopyClick(dateStr){
+  if(!copySource){
+    // Definir origen
+    if(copySelectType==='day'){
+      copySource = { type:'day', dateStr };
+      document.getElementById('copySourceLabel').textContent = `Origen: ${dateStr}. Ahora tocá el destino (día de llegada).`;
+    } else if(copySelectType==='week'){
+      const days = getWeekDays(new Date(dateStr+'T12:00:00'));
+      copySource = { type:'week', dateStr, weekDays: days.map(fmtDateStr) };
+      document.getElementById('copySourceLabel').textContent = `Origen: semana del ${copySource.weekDays[0]}. Tocá el lunes destino.`;
+    } else {
+      const ms = dateStr.slice(0,7);
+      copySource = { type:'month', dateStr, monthStr: ms };
+      document.getElementById('copySourceLabel').textContent = `Origen: mes ${ms}. Tocá cualquier día del mes destino.`;
+    }
+    document.getElementById('copyPasteBtn').style.display = 'inline-block';
+    document.getElementById('copyPasteBtn').onclick = null; // limpiamos por si había algo
+    // highlight origen
+    document.querySelectorAll('.day-cell').forEach(el=>{
+      el.classList.remove('copy-origin');
+      if(el.dataset.date===dateStr) el.classList.add('copy-origin');
+    });
+  } else {
+    // Destino seleccionado: pegar
+    pasteCareTo(dateStr);
+  }
+}
+
+// Botón manual "Pegar aquí" — usa el último día tocado o pide click
+document.getElementById('copyPasteBtn').addEventListener('click', ()=>{
+  if(!copySource){
+    alert('Primero seleccioná el origen en el calendario.');
+  }
+  // El pegado ocurre con el click en el día destino; este botón es visual/guía
+});
+
+async function pasteCareTo(destDateStr){
+  if(!copySource) return;
+  const src = copySource;
+  let newBlocks = [];
+
+  if(src.type==='day'){
+    // Copiar todos los bloques del día origen al día destino (mismas horas)
+    const srcBlocks = careBlocksForDay(src.dateStr);
+    if(srcBlocks.length===0){ alert('El día origen no tiene bloques de cuidado.'); return; }
+    newBlocks = srcBlocks.map(cb=>{
+      // calcular duración y aplicar al destino manteniendo horas
+      return { id:uid(), startDate:destDateStr, startTime:cb.startTime, endDate:destDateStr, endTime:cb.endTime, category:cb.category };
+    });
+    if(!confirm(`Pegar ${newBlocks.length} bloque(s) del ${src.dateStr} al ${destDateStr}? Los bloques existentes en el destino se mantienen (se agregan, no reemplazan).`)) return;
+  } else if(src.type==='week'){
+    // Copiar semana entera desplazando días
+    const srcStart = new Date(src.weekDays[0]+'T12:00:00');
+    const destWeekDays = getWeekDays(new Date(destDateStr+'T12:00:00')).map(fmtDateStr);
+    const srcAllBlocks = src.weekDays.flatMap(ds=>careBlocksForDay(ds));
+    if(srcAllBlocks.length===0){ alert('La semana origen no tiene bloques de cuidado.'); return; }
+    const offsetDays = Math.round((new Date(destWeekDays[0]+'T12:00:00') - srcStart)/86400000);
+    newBlocks = srcAllBlocks.map(cb=>{
+      const newStart = new Date(cb.startDate+'T12:00:00'); newStart.setDate(newStart.getDate()+offsetDays);
+      const newEnd = new Date(cb.endDate+'T12:00:00'); newEnd.setDate(newEnd.getDate()+offsetDays);
+      return { id:uid(), startDate:fmtDateStr(newStart), startTime:cb.startTime, endDate:fmtDateStr(newEnd), endTime:cb.endTime, category:cb.category };
+    });
+    if(!confirm(`Pegar semana ${src.weekDays[0]} → ${destWeekDays[0]} (${newBlocks.length} bloques)?`)) return;
+  } else {
+    // Copiar mes entero
+    const srcMs = src.monthStr;
+    const destMs = destDateStr.slice(0,7);
+    if(srcMs===destMs){ alert('El origen y destino son el mismo mes.'); return; }
+    const [srcY,srcM] = srcMs.split('-').map(Number);
+    const [dstY,dstM] = destMs.split('-').map(Number);
+    const srcMonthBlocks = careBlocks.filter(cb=>cb.startDate.startsWith(srcMs));
+    if(srcMonthBlocks.length===0){ alert('El mes origen no tiene bloques de cuidado.'); return; }
+    newBlocks = srcMonthBlocks.map(cb=>{
+      function shiftDate(ds){
+        const [y,m,d] = ds.split('-').map(Number);
+        let nm = m+(dstM-srcM), ny = y+(dstY-srcY);
+        const nd = Math.min(d, new Date(ny, nm, 0).getDate());
+        return `${String(ny).padStart(4,'0')}-${String(nm).padStart(2,'0')}-${String(nd).padStart(2,'0')}`;
+      }
+      return { id:uid(), startDate:shiftDate(cb.startDate), startTime:cb.startTime, endDate:shiftDate(cb.endDate), endTime:cb.endTime, category:cb.category };
+    });
+    if(!confirm(`Pegar mes ${srcMs} → ${destMs} (${newBlocks.length} bloques)?`)) return;
+  }
+
+  careBlocks.push(...newBlocks);
+  await saveCareBlocks();
+  exitCopyMode();
+  renderCalendar();
+  alert(`✅ ${newBlocks.length} bloque(s) copiados correctamente.`);
+}
 
 // ---------- Exportar PDF ----------
 // Agrupa los bloques de cuidado ordenados cronológicamente en tramos legibles
@@ -2053,7 +2406,22 @@ function renderTodayBanner(){
     lines.push(`Actividades: ${actList}`);
   }
 
-  banner.innerHTML = `<b>Hoy</b>` + lines.map(l=>escapeHtml(l)).join('<br>');
+  // Determinar color del banner según quién tiene el cuidado ahora
+  const now = new Date();
+  const nowMs = now.getTime();
+  let currentCarer = null;
+  blocks.forEach(cb=>{
+    const s = toDateTime(cb.startDate,cb.startTime).getTime();
+    const e = toDateTime(cb.endDate,cb.endTime).getTime();
+    if(nowMs>=s && nowMs<=e) currentCarer = cb.category;
+  });
+  const bannerBg = currentCarer==='mama' ? 'linear-gradient(135deg,#fde8f0,#fad5e5)' :
+                   currentCarer==='papa' ? 'linear-gradient(135deg,#e8f0fe,#d5e3fa)' :
+                   'linear-gradient(135deg,#fff8f0,#fdf2e9)';
+  const accentColor = currentCarer==='mama' ? 'var(--mama)' : currentCarer==='papa' ? 'var(--papa)' : 'var(--accent)';
+  banner.style.background = bannerBg;
+  banner.style.borderColor = currentCarer==='mama'?'#f0b8d0':currentCarer==='papa'?'#b8ccf0':'#f0ddc4';
+  banner.innerHTML = `<b style="color:${accentColor}">📍 Hoy · ${now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'})}</b><br>` + lines.map(l=>escapeHtml(l)).join('<br>');
   banner.style.display = 'block';
 }
 
@@ -2062,6 +2430,8 @@ function refreshAll(){
   renderCalendar();
   renderDiagnostico();
 }
+
+
 
 function renderDiagnostico(){
   let el = document.getElementById('diagFooter');
