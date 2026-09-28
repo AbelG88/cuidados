@@ -2,666 +2,2210 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Cuidados</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+<link rel="icon" href="icons/icon-192.png?v=3">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=3">
+<meta name="theme-color" content="#c9622a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Cuidados">
+
+<link rel="manifest" href="manifest.json">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<script type="module">
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js");
+    const {
+      getFirestore, doc, collection, onSnapshot,
+      setDoc, deleteDoc, getDoc, initializeFirestore
+    } = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCpe0y3LC5W3DQ3ZVv3E6AN1pKiqu5_xhM",
+      authDomain: "cuidados-70828.firebaseapp.com",
+      projectId: "cuidados-70828",
+      storageBucket: "cuidados-70828.firebasestorage.app",
+      messagingSenderId: "729749022715",
+      appId: "1:729749022715:web:689f7b4cf10c73bf510d5e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    // Forzar long-polling automático evita fallos de conexión en algunos navegadores/WebViews
+    const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+
+    // Exponer en window para que el script principal (no-módulo) los use
+    window.__firebase = { db, doc, collection, onSnapshot, setDoc, deleteDoc, getDoc };
+    console.log('Firebase inicializado correctamente.');
+  } catch (err) {
+    console.error('Error inicializando Firebase:', err);
+    window.__firebaseError = err;
+  }
+</script>
 <style>
-:root {
-  --abel:#4F7EF7; --abel-l:#E8EFFE; --abel-d:#2D5BD4;
-  --vicky:#F25C8A; --vicky-l:#FDEDF3; --vicky-d:#C93A67;
-  --mixed:#8B5CF6; --mixed-l:#EDE9FF;
-  --holiday:#F59E0B; --holiday-l:#FEF3C7;
-  --event:#10B981; --event-l:#D1FAE5;
-  --bg:#F7F5F2; --card:#FFFFFF; --text:#1A1A2E; --soft:#6B6B80; --border:#E8E4DE;
-  --green:#10B981; --red:#EF4444;
-  --copy:#FF6B35; --copy-l:#FFF0EA;
-}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+  :root{
+    --mama:#e0578c;
+    --papa:#3b7ddb;
+    --actividad:#7a6a58;
+    --bg:#f7f6f3;
+    --card:#ffffff;
+    --ink:#2b2b2b;
+    --muted:#8a8a8a;
+    --line:#eae7e1;
+    --accent:#c9622a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding-bottom:40px;
+  }
+  header{
+    padding:20px 16px 12px;
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    position:sticky;
+    top:0;
+    z-index:5;
+  }
+  header h1{
+    margin:0 0 4px;
+    font-size:1.3rem;
+    font-weight:700;
+    text-align:center;
+  }
+  .month-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:10px;
+  }
+  .month-nav button{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-size:1.1rem;
+    padding:6px 14px;
+    cursor:pointer;
+  }
+  .month-label{
+    font-weight:600;
+    font-size:1.05rem;
+    text-transform:capitalize;
+  }
+  main{
+    max-width:900px;
+    margin:0 auto;
+    padding:14px;
+  }
+  .summary{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .summary-card{
+    background:var(--card);
+    border-radius:12px;
+    padding:12px 14px;
+    border:1px solid var(--line);
+  }
+  .summary-card h3{
+    margin:0 0 8px;
+    font-size:.8rem;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  .summary-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:.92rem;
+    margin-bottom:4px;
+  }
+  .dot{
+    display:inline-block;
+    width:9px;height:9px;
+    border-radius:50%;
+    margin-right:6px;
+  }
+  .dot.mama{background:var(--mama);}
+  .dot.papa{background:var(--papa);}
+  .summary-diff{
+    font-size:.75rem;
+    color:var(--muted);
+    margin-top:6px;
+    padding-top:6px;
+    border-top:1px dashed var(--line);
+    font-weight:600;
+  }
+  #todayBanner{
+    background:linear-gradient(135deg, #fff8f0, #fdf2e9);
+    border:1px solid #f0ddc4;
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:14px;
+    font-size:.88rem;
+    line-height:1.5;
+  }
+  #todayBanner b{display:block;font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
 
-/* HEADER */
-.hdr{background:var(--text);color:#fff;padding:18px 20px 14px;position:sticky;top:0;z-index:100}
-.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.hdr h1{font-family:'DM Serif Display',serif;font-size:21px}
-.hdr h1 span{color:var(--abel)}
-.mnav{display:flex;align-items:center;gap:8px}
-.mnav button{background:rgba(255,255,255,.12);border:none;color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center}
-.mlabel{font-size:13px;font-weight:500;min-width:98px;text-align:center}
-.saldo-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-.si{background:rgba(255,255,255,.09);border-radius:10px;padding:7px 8px;text-align:center}
-.si .v{font-size:15px;font-weight:700;line-height:1}
-.si .l{font-size:9px;opacity:.6;margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
-.si.abel .v{color:#7BA8FF}.si.vicky .v{color:#F890AD}
-.si.bal .v{color:var(--green)}.si.bal.neg .v{color:#FF7777}
-
-/* TABS */
-.tabs{display:flex;gap:5px;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--border)}
-.tab{flex:1;padding:7px 4px;border:1.5px solid var(--border);background:transparent;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;transition:all .2s}
-.tab.active{background:var(--text);border-color:var(--text);color:#fff}
-
-/* COPY MODE BANNER */
-.copy-banner{display:none;background:var(--copy);color:#fff;padding:10px 16px;font-size:13px;font-weight:600;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:90}
-.copy-banner.show{display:flex}
-.copy-banner button{background:rgba(255,255,255,.2);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer}
-.copy-banner .info{font-size:11px;opacity:.85;margin-top:1px}
-
-/* CALENDAR */
-.cal-wrap{padding:14px 16px}
-.wday-row{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
-.wday-row span{text-align:center;font-size:10px;font-weight:600;color:var(--soft);text-transform:uppercase;padding:3px 0}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
-.cd{aspect-ratio:1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;border:2px solid transparent;position:relative;background:var(--card)}
-.cd.empty{background:transparent;cursor:default}
-.cd.abel{background:var(--abel-l)}.cd.vicky{background:var(--vicky-l)}
-.cd.mixed{background:var(--mixed-l)}.cd.holiday{background:var(--holiday-l)}
-.cd.today{border-color:var(--text)!important}
-.cd:not(.empty):active{transform:scale(.92)}
-.cd.copy-src{border-color:var(--copy)!important;box-shadow:0 0 0 2px var(--copy)}
-.cd.copy-dst{border-color:var(--green)!important;background:var(--event-l)!important}
-.cd .dn{font-size:14px;font-weight:700;line-height:1}
-.cd.abel .dn{color:var(--abel-d)}.cd.vicky .dn{color:var(--vicky-d)}
-.cd.mixed .dn{color:var(--mixed)}.cd.holiday .dn{color:#92400E}
-.cd .di{font-size:8px;font-weight:500;margin-top:1px;opacity:.55}
-.cd .dots{position:absolute;bottom:3px;display:flex;gap:2px}
-.cd .dot{width:4px;height:4px;border-radius:50%}
-.cd .dot.note{background:var(--soft)}
-.cd .dot.event{background:var(--event)}
-
-/* WEEK */
-.wk-wrap{padding:10px 16px}
-.wk-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
-.wk-nav button{background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:5px 12px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;color:var(--text);transition:all .2s}
-.wk-nav button:hover{background:var(--text);color:#fff;border-color:var(--text)}
-.wk-nav span{font-size:12px;font-weight:600;color:var(--soft)}
-.dc{background:var(--card);border-radius:14px;margin-bottom:7px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07);cursor:pointer;border-left:4px solid transparent}
-.dc:active{transform:scale(.99)}
-.dc.abel{border-left-color:var(--abel)}.dc.vicky{border-left-color:var(--vicky)}
-.dc.mixed{border-left-color:var(--mixed)}.dc.holiday{border-left-color:var(--holiday)}
-.dc-inner{padding:11px 13px;display:flex;align-items:center;gap:11px}
-.db{width:42px;height:42px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
-.db.abel{background:var(--abel-l)}.db.vicky{background:var(--vicky-l)}
-.db.mixed{background:var(--mixed-l)}.db.holiday{background:var(--holiday-l)}
-.db .dbn{font-size:17px;font-weight:700;line-height:1}
-.db.abel .dbn{color:var(--abel-d)}.db.vicky .dbn{color:var(--vicky-d)}
-.db.mixed .dbn{color:var(--mixed)}.db.holiday .dbn{color:#92400E}
-.db .dbd{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;opacity:.5}
-.di-info{flex:1;min-width:0}
-.di-who{font-size:13px;font-weight:600}
-.di-bl{font-size:10px;color:var(--soft);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.di-note{font-size:10px;color:var(--soft);margin-top:3px;font-style:italic}
-.di-ev{font-size:10px;color:var(--event);font-weight:500;margin-top:2px}
-.dh{text-align:right;flex-shrink:0}
-.dh .dha{font-size:12px;font-weight:600;color:var(--abel)}
-.dh .dhv{font-size:12px;font-weight:600;color:var(--vicky)}
-.dh .dhl{font-size:9px;color:var(--soft);text-transform:uppercase;letter-spacing:.3px}
-
-/* EVENTS TAB */
-.ev-wrap{padding:12px 16px}
-.ev-month-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);margin-bottom:10px}
-.ev-card{background:var(--card);border-radius:13px;padding:12px 14px;margin-bottom:7px;box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid var(--event);display:flex;align-items:center;gap:12px}
-.ev-date-badge{background:var(--event-l);border-radius:10px;padding:6px 10px;text-align:center;flex-shrink:0}
-.ev-date-badge .edn{font-size:18px;font-weight:700;color:var(--event);line-height:1}
-.ev-date-badge .edm{font-size:9px;color:var(--event);font-weight:600;text-transform:uppercase}
-.ev-info{flex:1}
-.ev-info .eit{font-size:14px;font-weight:600}
-.ev-info .eis{font-size:11px;color:var(--soft);margin-top:2px}
-.ev-del{background:none;border:none;cursor:pointer;font-size:18px;color:var(--soft);padding:4px;border-radius:6px}
-.ev-del:hover{color:var(--red)}
-.ev-empty{text-align:center;padding:30px 20px;color:var(--soft);font-size:13px}
-.add-ev-btn{width:100%;padding:12px;background:var(--event);color:#fff;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;transition:all .2s}
-.add-ev-btn:active{transform:scale(.98)}
-
-/* EXPORT TAB */
-.exp-wrap{padding:16px}
-.exp-card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.exp-card h3{font-size:14px;font-weight:600;margin-bottom:6px}
-.exp-card p{font-size:12px;color:var(--soft);margin-bottom:14px;line-height:1.5}
-.exp-btn{width:100%;padding:12px;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
-.exp-btn:active{transform:scale(.98)}
-.exp-btn.whatsapp{background:#25D366;color:#fff}
-.exp-btn.pdf{background:var(--text);color:#fff}
-.exp-btn.copy-mode{background:var(--copy);color:#fff}
-.exp-sep{height:1px;background:var(--border);margin:14px 0}
-.copy-hint{font-size:11px;color:var(--soft);text-align:center;margin-top:8px;line-height:1.5}
-
-/* MODAL */
-.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
-.ov.open{display:flex}
-.modal{background:var(--card);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:0 0 28px;animation:slideUp .23s ease;max-height:92vh;overflow-y:auto}
-@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
-.mhandle{width:38px;height:4px;background:var(--border);border-radius:2px;margin:11px auto 0}
-.mhdr{padding:14px 18px;border-bottom:1px solid var(--border)}
-.mhdr h2{font-family:'DM Serif Display',serif;font-size:19px}
-.mhdr .ms{font-size:11px;color:var(--soft);margin-top:2px}
-.mbody{padding:14px 18px}
-.sec-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);margin-bottom:8px}
-.blk-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;background:var(--bg);border-radius:11px;padding:9px 11px}
-.bt{font-size:11px;font-weight:600;color:var(--soft);min-width:88px}
-.bh{font-size:10px;color:var(--soft);min-width:30px}
-.btog{flex:1;display:flex;gap:5px}
-.ob{flex:1;padding:5px;border-radius:7px;border:1.5px solid var(--border);background:#fff;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--soft)}
-.ob.oa{background:var(--abel-l);border-color:var(--abel);color:var(--abel-d);font-weight:600}
-.ob.ov{background:var(--vicky-l);border-color:var(--vicky);color:var(--vicky-d);font-weight:600}
-.day-tot{display:flex;gap:7px;margin-top:12px;padding:11px;background:var(--bg);border-radius:11px}
-.dti{flex:1;text-align:center}
-.dti .dtv{font-size:17px;font-weight:700}
-.dti.abel .dtv{color:var(--abel)}.dti.vicky .dtv{color:var(--vicky)}
-.dti .dtl{font-size:9px;color:var(--soft);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
-.note-sec{margin-top:13px}
-.note-sec label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);display:block;margin-bottom:6px}
-.note-sec textarea{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);resize:none;height:64px;outline:none;transition:border-color .2s}
-.note-sec textarea:focus{border-color:var(--abel)}
-.ev-sec{margin-top:13px}
-.ev-list-modal{margin-bottom:8px}
-.ev-item-modal{display:flex;align-items:center;justify-content:space-between;background:var(--event-l);border-radius:9px;padding:7px 10px;margin-bottom:5px;font-size:12px}
-.ev-item-modal .eip{font-weight:500;color:var(--event)}
-.ev-item-modal button{background:none;border:none;cursor:pointer;color:var(--soft);font-size:15px}
-.ev-add-row{display:flex;gap:6px}
-.ev-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:7px 10px;font-family:'DM Sans',sans-serif;font-size:12px;color:var(--text);outline:none}
-.ev-input:focus{border-color:var(--event)}
-.ev-add-btn{background:var(--event);color:#fff;border:none;border-radius:9px;padding:7px 12px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer}
-.hol-banner{background:var(--holiday-l);border-radius:9px;padding:7px 11px;font-size:11px;color:#92400E;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:5px}
-.save-btn{width:100%;margin-top:13px;padding:13px;background:var(--text);color:#fff;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
-.save-btn:active{transform:scale(.98)}
-
-/* EVENT MODAL */
-.emod{background:var(--card);border-radius:22px 22px 0 0;width:100%;max-width:480px;padding:0 0 28px;animation:slideUp .23s ease}
-.emod .mbody input,.emod .mbody select{width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:11px;padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;margin-bottom:10px}
-.emod .mbody input:focus,.emod .mbody select:focus{border-color:var(--event)}
-.emod .mbody label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--soft);display:block;margin-bottom:5px}
-.ev-save-btn{width:100%;padding:13px;background:var(--event);color:#fff;border:none;border-radius:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px}
-
-::-webkit-scrollbar{width:0}
+  /* Modo solo-lectura: ocultar todo lo que permite modificar datos */
+  body.read-only-mode .fab,
+  body.read-only-mode #addFromDayBtn,
+  body.read-only-mode #addCareFromDayBtn,
+  body.read-only-mode #manageTemplatesBtn,
+  body.read-only-mode .small-btn,
+  body.read-only-mode #exportProposalBtn,
+  body.read-only-mode #importProposalBtn,
+  body.read-only-mode #deleteMonthBtn{
+    display:none !important;
+  }
+  .read-only-badge{
+    display:none;
+    text-align:center;
+    font-size:.72rem;
+    color:var(--muted);
+    background:#f0f0f0;
+    padding:6px;
+    border-radius:8px;
+    margin-bottom:10px;
+  }
+  body.read-only-mode .read-only-badge{ display:block; }
+  .calendar{
+    background:var(--card);
+    border-radius:12px;
+    border:1px solid var(--line);
+    overflow:hidden;
+  }
+  .weekdays{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    background:#faf9f7;
+    border-bottom:1px solid var(--line);
+  }
+  .weekdays div{
+    text-align:center;
+    font-size:.7rem;
+    color:var(--muted);
+    padding:8px 0;
+    font-weight:600;
+    text-transform:uppercase;
+  }
+  .days-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+  }
+  .day-cell{
+    min-height:78px;
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:4px;
+    cursor:pointer;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    transition:background .1s;
+  }
+  .day-cell.care-mama{background:rgba(224,87,140,.16);}
+  .day-cell.care-papa{background:rgba(59,125,219,.16);}
+  .day-cell.care-split{
+    background:linear-gradient(90deg, rgba(224,87,140,.16) 50%, rgba(59,125,219,.16) 50%);
+  }
+  .day-cell.care-gap::after{
+    content:'⚠';
+    position:absolute;
+    top:2px;
+    right:2px;
+    font-size:.7rem;
+  }
+  .day-cell:hover{background:#faf8f5;}
+  .day-cell.other-month{opacity:.35;}
+  .day-cell.today .day-num{
+    background:var(--accent);
+    color:#fff;
+    border-radius:50%;
+  }
+  .day-num{
+    font-size:.78rem;
+    width:20px;height:20px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:2px;
+  }
+  .events-mini{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    overflow:hidden;
+  }
+  .event-chip{
+    font-size:.62rem;
+    padding:1px 4px;
+    border-radius:4px;
+    color:#fff;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .event-chip.mama{background:var(--mama);}
+  .event-chip.papa{background:var(--papa);}
+  .event-chip.otro{background:#9a9a9a;}
+  .event-chip.actividad{background:var(--actividad);}
+  .event-chip.handoff{background:var(--accent);font-weight:700;}
+  .fab{
+    position:fixed;
+    bottom:22px;
+    right:22px;
+    width:56px;height:56px;
+    border-radius:50%;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    font-size:1.8rem;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+    cursor:pointer;
+    z-index:8;
+  }
+  .toolbar{
+    display:flex;
+    gap:8px;
+    margin:12px 0;
+  }
+  .toolbar button{
+    flex:1;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--card);
+    font-size:.85rem;
+    cursor:pointer;
+  }
+  .menu-item{
+    display:block;
+    width:100%;
+    text-align:left;
+    padding:13px 16px;
+    border:none;
+    border-bottom:1px solid var(--line);
+    background:var(--card);
+    font-size:.9rem;
+    cursor:pointer;
+  }
+  .menu-item:last-child{border-bottom:none;}
+  .menu-item:active{background:#faf8f5;}
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.4);
+    z-index:20;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:#fff;
+    width:100%;
+    max-width:480px;
+    border-radius:16px;
+    padding:20px;
+    max-height:88vh;
+    overflow-y:auto;
+    animation:popup .18s ease-out;
+  }
+  @keyframes popup{from{transform:scale(.96);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .modal h2{margin-top:0;font-size:1.1rem;text-align:center;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:.78rem;
+    color:var(--muted);
+    margin-bottom:5px;
+    font-weight:600;
+  }
+  .field input,.field select,.field textarea{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:.95rem;
+    font-family:inherit;
+  }
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;}
+  .cat-selector{display:flex;gap:8px;}
+  .cat-btn{
+    flex:1;
+    padding:10px;
+    border-radius:8px;
+    border:2px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:.85rem;
+    font-weight:600;
+    text-align:center;
+  }
+  .cat-btn.sel-mama{border-color:var(--mama);background:#fce8f0;}
+  .cat-btn.sel-papa{border-color:var(--papa);background:#e8f0fc;}
+  .cat-btn.sel-otro{border-color:#9a9a9a;background:#f0f0f0;}
+  .modal-actions{
+    display:flex;
+    gap:10px;
+    margin-top:18px;
+  }
+  .btn{
+    flex:1;
+    padding:12px;
+    border-radius:10px;
+    border:none;
+    font-size:.9rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-secondary{background:#eee;color:#333;}
+  .btn-danger{background:#fdeaea;color:#c0392b;}
+  .day-events-list{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .day-event-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px;
+    border-radius:8px;
+    border-left:4px solid;
+    background:#faf9f7;
+  }
+  .day-event-item .info b{display:block;font-size:.9rem;}
+  .day-event-item .info span{font-size:.78rem;color:var(--muted);}
+  .day-event-item.mama{border-color:var(--mama);}
+  .day-event-item.papa{border-color:var(--papa);}
+  .day-event-item.otro{border-color:#9a9a9a;}
+  .day-event-item.actividad{border-color:var(--actividad);}
+  .small-btn{
+    background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:4px 8px;
+  }
+  .repeat-options{display:none;}
+  .repeat-options.open{display:block;}
+  .checkbox-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;}
+  .checkbox-row input{width:auto;}
+  .empty-hint{
+    text-align:center;
+    color:var(--muted);
+    font-size:.85rem;
+    padding:16px;
+  }
 </style>
 </head>
 <body>
 
-<div class="hdr">
-  <div class="hdr-top">
-    <h1>Cui<span>dados</span></h1>
-    <div class="mnav">
-      <button onclick="changeMonth(-1)">‹</button>
-      <span class="mlabel" id="mlabel">Mayo 2026</span>
-      <button onclick="changeMonth(1)">›</button>
+<header>
+  <h1><img src="icons/icon-192.png?v=3" alt="" style="width:28px;height:28px;vertical-align:-6px;border-radius:6px;margin-right:6px;"> Cuidados</h1>
+  <div class="month-nav">
+    <button id="prevMonth">‹</button>
+    <div class="month-label" id="monthLabel"></div>
+    <button id="nextMonth">›</button>
+  </div>
+</header>
+
+<main>
+  <div class="read-only-badge">
+    👀 Modo solo lectura
+    <button id="unlockEditBtn" style="margin-left:8px;border:1px solid var(--muted);background:#fff;border-radius:6px;padding:3px 10px;font-size:.72rem;cursor:pointer;">🔒 Editar</button>
+  </div>
+  <div id="todayBanner" style="display:none;"></div>
+  <div class="summary">
+    <div class="summary-card">
+      <h3 id="weekSummaryLabel">Esta semana</h3>
+      <div class="summary-row"><span><span class="dot mama"></span>Mamá</span><b id="weekMama">0h</b></div>
+      <div class="summary-row"><span><span class="dot papa"></span>Papá</span><b id="weekPapa">0h</b></div>
+      <div class="summary-diff" id="weekDiff"></div>
+    </div>
+    <div class="summary-card">
+      <h3 id="monthSummaryLabel">Este mes</h3>
+      <div class="summary-row"><span><span class="dot mama"></span>Mamá</span><b id="monthMama">0h</b></div>
+      <div class="summary-row"><span><span class="dot papa"></span>Papá</span><b id="monthPapa">0h</b></div>
+      <div class="summary-diff" id="monthDiff"></div>
     </div>
   </div>
-  <div class="saldo-strip">
-    <div class="si abel"><div class="v" id="sA">—</div><div class="l">Abel hs</div></div>
-    <div class="si vicky"><div class="v" id="sV">—</div><div class="l">Vicky hs</div></div>
-    <div class="si bal" id="siBal"><div class="v" id="sBal">—</div><div class="l">Saldo</div></div>
+
+  <div class="toolbar">
+    <button id="moreOptionsBtn" style="position:relative;">⋯ Más opciones</button>
+    <button id="toggleActivitiesBtn">👁️ Ocultar actividades</button>
+    <button id="manageTemplatesBtn">⚙️ Plantillas</button>
   </div>
-</div>
-
-<div class="copy-banner" id="copyBanner">
-  <div>
-    <div id="copyBannerText">Modo copiar activo</div>
-    <div class="info" id="copyBannerInfo">Seleccioná el día origen</div>
+  <div id="moreOptionsMenu" style="display:none;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:-4px 0 12px;overflow:hidden;">
+    <button class="menu-item" id="exportPdfBtn">⬇️ Exportar PDF</button>
+    <button class="menu-item" id="exportIcsBtn">📆 Exportar .ics</button>
+    <button class="menu-item" id="exportProposalBtn">💾 Exportar respaldo completo</button>
+    <button class="menu-item" id="importProposalBtn">📥 Importar respaldo</button>
+    <button class="menu-item" id="deleteMonthBtn" style="color:#c0392b;">🗑️ Borrar mes actual</button>
   </div>
-  <button onclick="cancelCopy()">Cancelar</button>
-</div>
+  <input type="file" id="importFileInput" accept=".json" style="display:none;">
 
-<div class="tabs">
-  <button class="tab active" onclick="setTab('mes')">📅 Mes</button>
-  <button class="tab" onclick="setTab('semana')">📋 Semana</button>
-  <button class="tab" onclick="setTab('eventos')">📌 Eventos</button>
-  <button class="tab" onclick="setTab('opciones')">⚙️ Más</button>
-</div>
-
-<!-- MES -->
-<div id="tabMes" class="cal-wrap">
-  <div class="wday-row"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
-  <div class="cal-grid" id="calGrid"></div>
-</div>
-
-<!-- SEMANA -->
-<div id="tabSemana" style="display:none" class="wk-wrap">
-  <div class="wk-nav">
-    <button onclick="changeWeek(-1)">← Ant.</button>
-    <span id="wkLabel"></span>
-    <button onclick="changeWeek(1)">Sig. →</button>
-  </div>
-  <div id="wkCards"></div>
-</div>
-
-<!-- EVENTOS -->
-<div id="tabEventos" style="display:none" class="ev-wrap">
-  <div class="ev-month-title" id="evMonthTitle">Mayo 2026</div>
-  <div id="evList"></div>
-  <button class="add-ev-btn" onclick="openEventModal()">+ Agregar evento</button>
-</div>
-
-<!-- OPCIONES / EXPORTAR -->
-<div id="tabOpciones" style="display:none" class="exp-wrap">
-  <div class="exp-card">
-    <h3>📋 Copiar días</h3>
-    <p>Seleccionás un día origen, después marcás uno o varios días destino y aplicás los bloques de golpe.</p>
-    <button class="exp-btn copy-mode" onclick="startCopyMode()">Activar modo copiar</button>
-    <div class="copy-hint">Útil para aplicar la rutina de lunes a todos los lunes del mes, por ejemplo.</div>
-  </div>
-  <div class="exp-card">
-    <h3>📤 Compartir por WhatsApp</h3>
-    <p>Genera un resumen del mes en texto y lo abre directamente en WhatsApp para enviarle a Vicky.</p>
-    <button class="exp-btn whatsapp" onclick="shareWhatsApp()">Compartir resumen</button>
-  </div>
-  <div class="exp-card">
-    <h3>🖨️ Exportar a PDF</h3>
-    <p>Abre la vista de impresión del mes para guardar como PDF desde el navegador.</p>
-    <button class="exp-btn pdf" onclick="exportPDF()">Exportar PDF</button>
-  </div>
-</div>
-
-<!-- MODAL DÍA -->
-<div class="ov" id="dayOv" onclick="closeDayModal(event)">
-  <div class="modal" id="dayModal">
-    <div class="mhandle"></div>
-    <div class="mhdr">
-      <h2 id="mTitle">—</h2>
-      <div class="ms" id="mSub">—</div>
+  <div class="calendar">
+    <div class="weekdays">
+      <div>Dom</div><div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div>
     </div>
-    <div class="mbody">
-      <div id="holBanner" class="hol-banner" style="display:none">🟡 <span id="holText"></span></div>
-      <div class="sec-title">Bloques horarios</div>
-      <div id="blkContainer"></div>
-      <div class="day-tot">
-        <div class="dti abel"><div class="dtv" id="dtA">0h</div><div class="dtl">Abel</div></div>
-        <div class="dti vicky"><div class="dtv" id="dtV">0h</div><div class="dtl">Vicky</div></div>
-      </div>
-      <div class="note-sec">
-        <label>Nota del día</label>
-        <textarea id="noteInp" placeholder="Acuerdo, compensación, recordatorio..."></textarea>
-      </div>
-      <div class="ev-sec">
-        <div class="sec-title" style="margin-top:4px">Eventos del día</div>
-        <div id="evListModal"></div>
-        <div class="ev-add-row">
-          <input class="ev-input" id="evInp" placeholder="Ej: Terapia, Cita médica..." onkeydown="if(event.key==='Enter')addEventFromModal()">
-          <button class="ev-add-btn" onclick="addEventFromModal()">+</button>
-        </div>
-      </div>
-      <button class="save-btn" onclick="saveDay()">Guardar</button>
+    <div class="days-grid" id="daysGrid"></div>
+  </div>
+</main>
+
+<button class="fab" id="addEventFab" style="bottom:22px;">+</button>
+<button class="fab" id="addCareBlockFab" style="bottom:90px;background:var(--ink);font-size:1.3rem;display:flex;align-items:center;justify-content:center;position:fixed;">
+  <span style="position:relative;display:inline-block;">
+    🏠<span style="position:absolute;bottom:-6px;right:-10px;background:var(--accent);color:#fff;border-radius:50%;width:16px;height:16px;font-size:.75rem;line-height:16px;text-align:center;font-weight:700;">+</span>
+  </span>
+</button>
+
+<!-- Modal: Día seleccionado -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal">
+    <h2 id="dayModalTitle">Día</h2>
+    <div class="day-events-list" id="dayEventsList"></div>
+    <button class="btn btn-primary" id="addFromDayBtn" style="width:100%;">+ Agregar actividad este día</button>
+    <button class="btn btn-secondary" id="addCareFromDayBtn" style="width:100%;margin-top:8px;">🏠 Agregar bloque de cuidado</button>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="closeDayModal" style="width:100%;">Cerrar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL EVENTO -->
-<div class="ov" id="evOv" onclick="closeEvModal(event)">
-  <div class="emod">
-    <div class="mhandle"></div>
-    <div class="mhdr"><h2>Nuevo evento</h2></div>
-    <div class="mbody">
+<!-- Modal: Crear/editar evento -->
+<div class="modal-overlay" id="eventModal">
+  <div class="modal">
+    <h2 id="eventModalTitle">Nueva actividad</h2>
+    <input type="hidden" id="editEventId">
+
+    <div class="field" id="templatesField">
+      <label>Plantillas rápidas</label>
+      <div id="templatesRow" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
+
+    <div class="field">
       <label>Título</label>
-      <input id="evTitle" placeholder="Ej: Terapia de lenguaje, Cumpleaños...">
-      <label>Día</label>
-      <input id="evDay" type="number" min="1" max="31" placeholder="Día del mes">
-      <label>Hora (opcional)</label>
-      <input id="evTime" type="time">
-      <label>Tipo</label>
-      <select id="evType">
-        <option value="médica">🏥 Cita médica</option>
-        <option value="terapia">🧠 Terapia</option>
-        <option value="cumpleaños">🎂 Cumpleaños</option>
-        <option value="escolar">📚 Escolar</option>
-        <option value="otro">📌 Otro</option>
-      </select>
-      <button class="ev-save-btn" onclick="saveEvent()">Guardar evento</button>
+      <input type="text" id="eventTitle" placeholder="Ej: Colegio, Turno médico...">
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="multiDayToggle">
+      <label for="multiDayToggle" style="margin:0;">Abarca varios días (ej: finde completo)</label>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label id="eventDateLabel">Fecha</label>
+        <input type="date" id="eventDate">
+      </div>
+      <div class="field" id="eventEndDateField" style="display:none;">
+        <label>Hasta fecha</label>
+        <input type="date" id="eventEndDate">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label id="eventStartLabel">Hora inicio</label>
+        <input type="time" id="eventStart" value="08:00">
+      </div>
+      <div class="field">
+        <label id="eventEndLabel">Hora fin</label>
+        <input type="time" id="eventEnd" value="09:00">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Notas (opcional)</label>
+      <textarea id="eventNotes" rows="2" placeholder="Detalles adicionales..."></textarea>
+    </div>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="repeatToggle">
+      <label for="repeatToggle" style="margin:0;">Repetir este evento</label>
+    </div>
+
+    <div class="repeat-options" id="repeatOptions">
+      <div class="field">
+        <label>Frecuencia</label>
+        <select id="repeatFreq">
+          <option value="weekly">Semanal (mismo día de semana)</option>
+          <option value="daily">Diario</option>
+          <option value="biweekly">Cada 2 semanas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Repetir hasta</label>
+        <input type="date" id="repeatUntil">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="deleteEventBtn" style="display:none;">Eliminar</button>
+      <button class="btn btn-secondary" id="cancelEventBtn">Cancelar</button>
+      <button class="btn btn-primary" id="saveEventBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Gestionar plantillas -->
+<div class="modal-overlay" id="templatesModal">
+  <div class="modal">
+    <h2>Plantillas de eventos recurrentes</h2>
+    <div id="templatesList" class="day-events-list"></div>
+    <button class="btn btn-primary" id="addTemplateBtn" style="width:100%;margin-bottom:10px;">+ Nueva plantilla</button>
+    <button class="btn btn-secondary" id="closeTemplatesModal" style="width:100%;">Cerrar</button>
+  </div>
+</div>
+
+<!-- Modal: Nueva plantilla -->
+<div class="modal-overlay" id="templateFormModal">
+  <div class="modal">
+    <h2>Nueva plantilla</h2>
+    <div class="field">
+      <label>Título</label>
+      <input type="text" id="tplTitle" placeholder="Ej: Fonoaudiología">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Hora inicio</label>
+        <input type="time" id="tplStart" value="09:00">
+      </div>
+      <div class="field">
+        <label>Hora fin</label>
+        <input type="time" id="tplEnd" value="10:00">
+      </div>
+    </div>
+    <div class="field">
+      <label>Nota (opcional)</label>
+      <input type="text" id="tplNote" placeholder="Ej: Lunes y jueves">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelTplBtn" style="width:100%;">Cancelar</button>
+      <button class="btn btn-primary" id="saveTplBtn" style="width:100%;">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Revisar propuesta importada -->
+<div class="modal-overlay" id="proposalModal">
+  <div class="modal">
+    <h2>Respaldo encontrado</h2>
+    <p style="font-size:.85rem;color:var(--muted);">Se encontraron: <b id="proposalCount">0</b>. ¿Qué querés hacer?</p>
+    <div id="proposalPreview" style="max-height:200px;overflow-y:auto;font-size:.8rem;margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelProposalBtn" style="width:100%;">Cancelar</button>
+      <button class="btn btn-primary" id="mergeProposalBtn" style="width:100%;">Agregar a mi calendario</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Bloque de cuidado -->
+<div class="modal-overlay" id="careBlockModal">
+  <div class="modal">
+    <h2 id="careBlockModalTitle">Bloque de cuidado</h2>
+    <input type="hidden" id="editCareBlockId">
+    <p style="font-size:.8rem;color:var(--muted);margin-top:-6px;">Define quién tiene al nene a cargo en ese rango. Es lo único que suma horas de cuidado.</p>
+
+    <div class="field">
+      <label>¿Quién cuida?</label>
+      <div class="cat-selector">
+        <button type="button" class="cat-btn care-cat-btn" data-cat="mama">👩 Mamá</button>
+        <button type="button" class="cat-btn care-cat-btn" data-cat="papa">👨 Papá</button>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Desde (fecha)</label>
+        <input type="date" id="careStartDate">
+      </div>
+      <div class="field">
+        <label>Hora</label>
+        <input type="time" id="careStartTime" value="08:00">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Hasta (fecha)</label>
+        <input type="date" id="careEndDate">
+      </div>
+      <div class="field">
+        <label>Hora</label>
+        <input type="time" id="careEndTime" value="20:00">
+      </div>
+    </div>
+
+    <div class="checkbox-row" id="careRepeatRow">
+      <input type="checkbox" id="careRepeatToggle">
+      <label for="careRepeatToggle" style="margin:0;">Repetir este bloque</label>
+    </div>
+    <div class="repeat-options" id="careRepeatOptions">
+      <div class="field">
+        <label>Frecuencia</label>
+        <select id="careRepeatFreq">
+          <option value="weekly">Semanal (mismo patrón cada semana)</option>
+          <option value="biweekly">Cada 2 semanas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Repetir hasta</label>
+        <input type="date" id="careRepeatUntil">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="deleteCareBlockBtn" style="display:none;">Eliminar</button>
+      <button class="btn btn-secondary" id="cancelCareBlockBtn">Cancelar</button>
+      <button class="btn btn-primary" id="saveCareBlockBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ingresar PIN para desbloquear edición -->
+<div class="modal-overlay" id="pinModal">
+  <div class="modal">
+    <h2>Ingresar PIN de edición</h2>
+    <p style="font-size:.85rem;color:var(--muted);text-align:center;margin-top:-6px;">Pedile el PIN a quien administra el calendario.</p>
+    <div class="field">
+      <input type="tel" id="pinInput" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;font-size:1.8rem;letter-spacing:.3em;">
+    </div>
+    <p id="pinError" style="color:#c0392b;font-size:.8rem;text-align:center;display:none;">PIN incorrecto, probá de nuevo.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelPinBtn" style="width:100%;">Cancelar</button>
+      <button class="btn btn-primary" id="confirmPinBtn" style="width:100%;">Desbloquear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Rango de fechas para exportar -->
+<div class="modal-overlay" id="exportRangeModal">
+  <div class="modal">
+    <h2 id="exportRangeTitle">Elegir rango a exportar</h2>
+    <div class="field-row">
+      <div class="field">
+        <label>Desde</label>
+        <input type="date" id="exportRangeStart">
+      </div>
+      <div class="field">
+        <label>Hasta</label>
+        <input type="date" id="exportRangeEnd">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelExportRangeBtn" style="width:100%;">Cancelar</button>
+      <button class="btn btn-primary" id="confirmExportRangeBtn" style="width:100%;">Exportar</button>
     </div>
   </div>
 </div>
 
 <script>
-const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const DAYS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
-const DS=['L','M','M','J','V','S','D'];
-const BLOCKS=[{l:'0:00 – 12:30',h:12.5},{l:'12:30 – 15:00',h:2.5},{l:'15:00 – 16:30',h:1.5},{l:'16:30 – 00:00',h:7.5}];
-const HOLIDAYS={'2026-05-01':'Día del Trabajo','2026-05-25':'Día de la Patria'};
-const EV_ICONS={médica:'🏥',terapia:'🧠',cumpleaños:'🎂',escolar:'📚',otro:'📌'};
+// ---------- Modo compartido (Firebase) ----------
+const urlParams = new URLSearchParams(window.location.search);
+const familiaId = urlParams.get('fam');
+// El PIN de edición, una vez validado, se guarda en este dispositivo para no pedirlo de nuevo.
+const UNLOCK_KEY = 'cuidados_unlocked_' + familiaId;
+let isReadOnly = localStorage.getItem(UNLOCK_KEY) !== 'true';
+function firebaseReady(){ return !!familiaId && !!window.__firebase; }
 
-let Y=2026,M=4,curTab='mes',curWeek=0;
-let copyMode=false,copySrc=null,copyDsts=[];
-let editDay=null,tmpBlocks=[],tmpEvents=[];
+// ---------- Estado ----------
+let events = [];
+let careBlocks = [];
+let templates = [
+  {id:'t1', title:'Colegio', start:'08:00', end:'12:00'},
+  {id:'t2', title:'Fonoaudiología', start:'14:00', end:'15:00'},
+  {id:'t3', title:'TCC', start:'15:00', end:'16:00'},
+  {id:'t4', title:'TO', start:'16:00', end:'17:00'},
+  {id:'t5', title:'Psicopedagogía', start:'10:00', end:'11:00'},
+  {id:'t6', title:'Musicoterapia', start:'11:00', end:'12:00'}
+];
+let currentDate = new Date();
+let selectedDayStr = null;
+let showActivities = localStorage.getItem('cuidados_show_activities') !== 'false';
+let firestoreDoc = null;
+let suppressNextSnapshot = false;
 
-function sk(y,m){return`cuidados_${y}_${m}`}
-function esk(y,m){return`events_${y}_${m}`}
-function load(y,m){try{const r=localStorage.getItem(sk(y,m));return r?JSON.parse(r):{}}catch{return{}}}
-function save(y,m,d){try{localStorage.setItem(sk(y,m),JSON.stringify(d))}catch{}}
-function loadEv(y,m){try{const r=localStorage.getItem(esk(y,m));return r?JSON.parse(r):[]}catch{return[]}}
-function saveEv(y,m,d){try{localStorage.setItem(esk(y,m),JSON.stringify(d))}catch{}}
-
-let monthData=load(Y,M);
-let evData=loadEv(Y,M);
-
-function wk(d){return Math.floor((d-1)/7)}
-function defCov(day,wd){
-  const aw=wk(day)%2===0;
-  if(wd===0)return['v','v','v','v'];
-  if(wd===1)return['v','v','v','a'];
-  if(wd===2)return['a','a','a','a'];
-  if(wd===3)return['a','a','a','v'];
-  return aw?['a','a','a','a']:['v','v','v','v'];
-}
-function defNote(wd){
-  if(wd===1)return'Cole → Abel 16:30';
-  if(wd===3)return'Abel → Vicky 16:30';
-  if(wd===0)return'Vicky retira 15:00';
-  return'';
-}
-function getDayData(day){
-  const wd=getWD(day);
-  return monthData[day]||{blocks:defCov(day,wd),note:defNote(wd)};
-}
-function getDayEvents(day){return evData.filter(e=>e.day===day)}
-function getWD(day){return(new Date(Y,M,day).getDay()+6)%7}
-function dKey(y,m,d){return`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
-function owner(blk){const a=blk.filter(b=>b==='a').length;return a===4?'abel':a===0?'vicky':'mixed'}
-function hrs(blk){let a=0,v=0;blk.forEach((b,i)=>{if(b==='a')a+=BLOCKS[i].h;else v+=BLOCKS[i].h});return{a,v}}
-function daysInMonth(){return new Date(Y,M+1,0).getDate()}
-
-// SUMMARY
-function updateSummary(){
-  let tA=0,tV=0;
-  for(let d=1;d<=daysInMonth();d++){const{a,v}=hrs(getDayData(d).blocks);tA+=a;tV+=v}
-  const s=tA-tV;
-  document.getElementById('sA').textContent=tA.toFixed(1);
-  document.getElementById('sV').textContent=tV.toFixed(1);
-  document.getElementById('sBal').textContent=(s>=0?'+':'')+s.toFixed(1);
-  const el=document.getElementById('siBal');
-  el.className='si bal'+(s<0?' neg':'');
+function getFamiliaDocRef(){
+  const { doc, collection } = window.__firebase;
+  return doc(collection(window.__firebase.db, 'familias'), familiaId);
 }
 
-// CALENDAR
+// Guarda el estado completo (events, careBlocks, templates) en Firestore.
+// suppressNextSnapshot evita que el propio cambio que acabamos de escribir
+// dispare un re-render innecesario cuando vuelve por el listener en tiempo real.
+async function persistAll(){
+  if(!firebaseReady()){
+    console.error('persistAll llamado pero Firebase no está listo (familiaId o window.__firebase faltante).');
+    mostrarEstadoGuardado('❌ No se guardó: sin conexión a Firebase', true);
+    alert('No se pudo guardar: la conexión con el servidor todavía no está lista. Esperá unos segundos y volvé a intentar.');
+    return;
+  }
+  if(isReadOnly){ console.warn('Modo solo lectura: cambio bloqueado.'); mostrarEstadoGuardado('⚠️ No se guardó: estás en modo lectura', true); return; }
+  const { setDoc } = window.__firebase;
+  suppressNextSnapshot = true;
+  try{
+    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, updatedAt: Date.now() });
+    mostrarEstadoGuardado('✓ Guardado');
+  }catch(err){
+    console.error('Error guardando en Firebase:', err);
+    mostrarEstadoGuardado('❌ Error al guardar: ' + (err.message||err), true);
+    alert('No se pudo guardar el cambio. Revisá tu conexión a internet.');
+  }
+}
+
+function mostrarEstadoGuardado(msg, esError){
+  let el = document.getElementById('saveStatusToast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'saveStatusToast';
+    el.style.cssText = 'position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#2b2b2b;color:#fff;padding:8px 16px;border-radius:20px;font-size:.8rem;z-index:100;transition:opacity .3s;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.background = esError ? '#c0392b' : '#2b2b2b';
+  el.style.opacity = '1';
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(()=>{ el.style.opacity = '0'; }, esError ? 4000 : 1500);
+}
+
+function saveEvents(){ return persistAll(); }
+function saveCareBlocks(){ return persistAll(); }
+function saveTemplates(){ return persistAll(); }
+
+// Un evento (actividad) puede tener endDate (rango multi-día). Si no lo tiene, endDate = date.
+function eventEndDate(ev){ return ev.endDate || ev.date; }
+
+// ---------- Bloques de cuidado (fuente única de horas) ----------
+function toDateTime(dateStr, timeStr){
+  return new Date(dateStr+'T'+timeStr+':00');
+}
+// Horas de un bloque de cuidado que caen dentro de [rangeStartStr, rangeEndStr] (fechas YYYY-MM-DD, rango inclusive de días completos)
+function careBlockHoursInRange(cb, rangeStartStr, rangeEndStr){
+  const blockStart = toDateTime(cb.startDate, cb.startTime);
+  const blockEnd = toDateTime(cb.endDate, cb.endTime);
+  const rangeStart = toDateTime(rangeStartStr, '00:00');
+  const rangeEnd = toDateTime(rangeEndStr, '23:59');
+  const overlapStart = blockStart > rangeStart ? blockStart : rangeStart;
+  const overlapEnd = blockEnd < rangeEnd ? blockEnd : rangeEnd;
+  const ms = overlapEnd - overlapStart;
+  return ms > 0 ? ms/3600000 : 0;
+}
+// Bloques de cuidado que tocan un día dado (para pintar el fondo)
+function careBlocksForDay(dateStr){
+  const dayStart = toDateTime(dateStr, '00:00');
+  const dayEnd = toDateTime(dateStr, '23:59');
+  return careBlocks.filter(cb=>{
+    const bs = toDateTime(cb.startDate, cb.startTime);
+    const be = toDateTime(cb.endDate, cb.endTime);
+    return bs <= dayEnd && be >= dayStart;
+  });
+}
+
+// Horas reales de cuidado de una categoría (mama/papa) dentro de un rango de fechas,
+// usando la UNIÓN de los intervalos de esa categoría — así dos bloques solapados
+// (por ejemplo, uno cargado dos veces por error) no se cuentan doble.
+function categoryHoursInRange(category, rangeStartStr, rangeEndStr){
+  const rangeStart = toDateTime(rangeStartStr, '00:00');
+  const rangeEnd = toDateTime(rangeEndStr, '23:59');
+  const intervals = careBlocks
+    .filter(cb=>cb.category===category)
+    .map(cb=>{
+      const s = toDateTime(cb.startDate, cb.startTime);
+      const e = toDateTime(cb.endDate, cb.endTime);
+      return [Math.max(s, rangeStart), Math.min(e, rangeEnd)];
+    })
+    .filter(([s,e])=>e>s)
+    .sort((a,b)=>a[0]-b[0]);
+
+  let totalMs = 0, lastEnd = null;
+  intervals.forEach(([s,e])=>{
+    const effectiveStart = lastEnd===null ? s : (s > lastEnd ? s : lastEnd);
+    if(e > effectiveStart) totalMs += (e - effectiveStart);
+    lastEnd = lastEnd===null ? e : Math.max(lastEnd, e);
+  });
+  return totalMs / 3600000;
+}
+// Detecta si dentro de un día hay un cambio de cuidador (mamá->papá o viceversa) y a qué hora ocurre
+function dayHandoffTime(dateStr){
+  const blocks = careBlocksForDay(dateStr).slice().sort((a,b)=>{
+    return toDateTime(a.startDate,a.startTime) - toDateTime(b.startDate,b.startTime);
+  });
+  for(let i=1;i<blocks.length;i++){
+    if(blocks[i].category !== blocks[i-1].category){
+      const prevEnd = toDateTime(blocks[i-1].endDate, blocks[i-1].endTime);
+      const dayStart = toDateTime(dateStr,'00:00'), dayEnd = toDateTime(dateStr,'23:59');
+      if(prevEnd >= dayStart && prevEnd <= dayEnd){
+        return prevEnd.toTimeString().slice(0,5);
+      }
+    }
+  }
+  return null;
+}
+function dayCareCoverage(dateStr){
+  const blocks = careBlocksForDay(dateStr);
+  const cats = new Set(blocks.map(b=>b.category));
+  const dayStart = toDateTime(dateStr,'00:00');
+  const dayEnd = toDateTime(dateStr,'23:59');
+  let coveredMs = 0;
+  // unión simple de intervalos (suficiente para uso normal, sin miles de bloques superpuestos)
+  const intervals = blocks.map(b=>{
+    const s = toDateTime(b.startDate,b.startTime);
+    const e = toDateTime(b.endDate,b.endTime);
+    return [Math.max(s,dayStart), Math.min(e,dayEnd)];
+  }).sort((a,b)=>a[0]-b[0]);
+  let lastEnd = null;
+  intervals.forEach(([s,e])=>{
+    if(lastEnd===null || s>lastEnd) coveredMs += (e-Math.max(s,lastEnd||s));
+    else coveredMs += Math.max(0, e-lastEnd);
+    lastEnd = lastEnd===null? e : Math.max(lastEnd,e);
+  });
+  const totalMs = dayEnd - dayStart;
+  const hasGap = coveredMs < totalMs - 60000; // margen de 1 min
+
+  // Categoría vigente al principio (00:00) y al final (23:59) del día,
+  // para pintar el día en dos mitades que dan sensación de continuidad
+  // con el día anterior/siguiente en vez de un patrón diagonal fijo.
+  let catStart = null, catEnd = null;
+  blocks.forEach(b=>{
+    const s = toDateTime(b.startDate,b.startTime);
+    const e = toDateTime(b.endDate,b.endTime);
+    if(s <= dayStart && e > dayStart) catStart = b.category;
+    if(s < dayEnd && e >= dayEnd) catEnd = b.category;
+  });
+  // Si ningún bloque cubre exactamente el borde (por huecos), usamos el primero/último que exista ese día
+  if(!catStart && intervals.length>0) catStart = blocks[0].category;
+  if(!catEnd && blocks.length>0) catEnd = blocks[blocks.length-1].category;
+
+  return {cats, hasGap, hasBlocks: blocks.length>0, catStart, catEnd};
+}
+
+// Devuelve true si dateStr cae dentro del rango [ev.date, ev.endDate] del evento
+function eventCoversDate(ev, dateStr){
+  return dateStr >= ev.date && dateStr <= eventEndDate(ev);
+}
+// Detecta si un evento se solapa con un rango de fechas [rangeStart, rangeEnd]
+function eventCoversAnyDateInRange(ev, rangeStart, rangeEnd){
+  return ev.date <= rangeEnd && eventEndDate(ev) >= rangeStart;
+}
+
+function uid(){
+  return 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+function fmtDateStr(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function hoursBetween(start,end){
+  const [sh,sm] = start.split(':').map(Number);
+  const [eh,em] = end.split(':').map(Number);
+  let mins = (eh*60+em) - (sh*60+sm);
+  if(mins < 0) mins += 24*60; // cruza medianoche
+  return mins/60;
+}
+
+// ---------- Render calendario ----------
+const monthLabel = document.getElementById('monthLabel');
+const daysGrid = document.getElementById('daysGrid');
+
 function renderCalendar(){
-  const grid=document.getElementById('calGrid');
-  grid.innerHTML='';
-  const dim=daysInMonth();
-  const first=(new Date(Y,M,1).getDay()+6)%7;
-  const today=new Date();
-  for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cd empty';grid.appendChild(e)}
-  for(let d=1;d<=dim;d++){
-    const wd=getWD(d);
-    const dd=getDayData(d);
-    const ow=owner(dd.blocks);
-    const isH=!!HOLIDAYS[dKey(Y,M,d)];
-    const isT=(today.getFullYear()===Y&&today.getMonth()===M&&today.getDate()===d);
-    const dayEvs=getDayEvents(d);
-    let cls=`cd ${isH?'holiday':ow}${isT?' today':''}`;
-    if(copyMode&&copySrc===d)cls+=' copy-src';
-    if(copyMode&&copyDsts.includes(d))cls+=' copy-dst';
-    const el=document.createElement('div');
-    el.className=cls;
-    const dots=(dd.note?'<span class="dot note"></span>':'')+(dayEvs.length?'<span class="dot event"></span>':'');
-    el.innerHTML=`<span class="dn">${d}</span><span class="di">${DS[wd]}</span>${dots?`<div class="dots">${dots}</div>`:''}`;
-    el.onclick=()=>handleCalClick(d);
-    grid.appendChild(el);
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  monthLabel.textContent = currentDate.toLocaleDateString('es-ES', {month:'long', year:'numeric'});
+
+  const firstDay = new Date(year, month, 1);
+  const startOffset = firstDay.getDay();
+  const gridStart = new Date(year, month, 1 - startOffset);
+
+  daysGrid.innerHTML = '';
+  const todayStr = fmtDateStr(new Date());
+
+  for(let i=0;i<42;i++){
+    const cellDate = new Date(gridStart);
+    cellDate.setDate(gridStart.getDate()+i);
+    const cellStr = fmtDateStr(cellDate);
+    const isOtherMonth = cellDate.getMonth() !== month;
+
+    const cell = document.createElement('div');
+    let coverageClass = '';
+    const coverage = dayCareCoverage(cellStr);
+    const isSplit = coverage.cats.has('mama') && coverage.cats.has('papa');
+    if(isSplit) coverageClass = ' care-split';
+    else if(coverage.cats.has('mama')) coverageClass = ' care-mama';
+    else if(coverage.cats.has('papa')) coverageClass = ' care-papa';
+    const gapClass = coverage.hasGap ? ' care-gap' : '';
+    cell.className = 'day-cell' + (isOtherMonth?' other-month':'') + (cellStr===todayStr?' today':'') + coverageClass + gapClass;
+    cell.dataset.date = cellStr;
+
+    if(isSplit){
+      // Mitad izquierda = color de quien tenía el cuidado al empezar el día (continúa del día anterior),
+      // mitad derecha = color de quien lo tiene al terminar (continúa hacia el día siguiente).
+      const colorStart = coverage.catStart==='mama' ? 'rgba(224,87,140,.16)' : 'rgba(59,125,219,.16)';
+      const colorEnd = coverage.catEnd==='mama' ? 'rgba(224,87,140,.16)' : 'rgba(59,125,219,.16)';
+      cell.style.background = `linear-gradient(90deg, ${colorStart} 50%, ${colorEnd} 50%)`;
+    }
+
+    const num = document.createElement('div');
+    num.className = 'day-num';
+    num.textContent = cellDate.getDate();
+    cell.appendChild(num);
+
+    const mini = document.createElement('div');
+    mini.className = 'events-mini';
+
+    if(showActivities){
+      const dayEvents = events.filter(e=>eventCoversDate(e,cellStr)).sort((a,b)=>a.start.localeCompare(b.start));
+      dayEvents.slice(0,3).forEach(ev=>{
+        const chip = document.createElement('div');
+        chip.className = 'event-chip ' + ev.category;
+        chip.textContent = ev.title;
+        mini.appendChild(chip);
+      });
+      if(dayEvents.length>3){
+        const more = document.createElement('div');
+        more.className = 'event-chip otro';
+        more.textContent = `+${dayEvents.length-3} más`;
+        mini.appendChild(more);
+      }
+    }
+
+    // Mostrar hora de cambio de cuidador aunque las actividades estén ocultas
+    const handoff = dayHandoffTime(cellStr);
+    if(handoff){
+      const chip = document.createElement('div');
+      chip.className = 'event-chip handoff';
+      chip.textContent = '🔄 ' + handoff;
+      mini.appendChild(chip);
+    }
+
+    cell.appendChild(mini);
+    cell.addEventListener('click', ()=>openDayModal(cellStr));
+    daysGrid.appendChild(cell);
   }
+
+  renderSummary();
 }
 
-// COPY MODE
-function startCopyMode(){
-  copyMode=true;copySrc=null;copyDsts=[];
-  setTab('mes');
-  document.getElementById('copyBanner').classList.add('show');
-  document.getElementById('copyBannerInfo').textContent='Tocá el día origen (el que querés copiar)';
-  render();
+// ---------- Resumen de horas ----------
+function getWeekRange(d){
+  const day = d.getDay();
+  const start = new Date(d);
+  start.setDate(d.getDate()-day);
+  const end = new Date(start);
+  end.setDate(start.getDate()+6);
+  return [fmtDateStr(start), fmtDateStr(end)];
 }
-function cancelCopy(){
-  copyMode=false;copySrc=null;copyDsts=[];
-  document.getElementById('copyBanner').classList.remove('show');
-  render();
+
+function renderSummary(){
+  const today = new Date();
+  const viewingCurrentMonth = fmtDateStr(currentDate).slice(0,7) === fmtDateStr(today).slice(0,7);
+  const weekRefDate = viewingCurrentMonth ? today : currentDate;
+  const [weekStart, weekEnd] = getWeekRange(weekRefDate);
+  const monthStr = fmtDateStr(currentDate).slice(0,7);
+  const monthStart = monthStr+'-01';
+  const monthEndD = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0);
+  const monthEnd = fmtDateStr(monthEndD);
+
+  const weekMama = categoryHoursInRange('mama', weekStart, weekEnd);
+  const weekPapa = categoryHoursInRange('papa', weekStart, weekEnd);
+  const monthMama = categoryHoursInRange('mama', monthStart, monthEnd);
+  const monthPapa = categoryHoursInRange('papa', monthStart, monthEnd);
+
+  document.getElementById('weekSummaryLabel').textContent = viewingCurrentMonth ? 'Esta semana' : 'Primera semana del mes';
+  document.getElementById('monthSummaryLabel').textContent = viewingCurrentMonth ? 'Este mes' : currentDate.toLocaleDateString('es-ES',{month:'long'});
+  document.getElementById('weekMama').textContent = weekMama.toFixed(1)+'h';
+  document.getElementById('weekPapa').textContent = weekPapa.toFixed(1)+'h';
+  document.getElementById('monthMama').textContent = monthMama.toFixed(1)+'h';
+  document.getElementById('monthPapa').textContent = monthPapa.toFixed(1)+'h';
+
+  const weekDiff = weekMama - weekPapa;
+  const monthDiff = monthMama - monthPapa;
+  document.getElementById('weekDiff').textContent = weekDiff===0 ? 'Parejo' : `${Math.abs(weekDiff).toFixed(1)}h más ${weekDiff>0?'Mamá':'Papá'}`;
+  document.getElementById('monthDiff').textContent = monthDiff===0 ? 'Parejo' : `${Math.abs(monthDiff).toFixed(1)}h más ${monthDiff>0?'Mamá':'Papá'}`;
 }
-function handleCalClick(d){
-  if(!copyMode){openDayModal(d);return}
-  if(copySrc===null){
-    copySrc=d;
-    document.getElementById('copyBannerInfo').textContent=`Origen: día ${d}. Ahora tocá los días destino`;
-    renderCalendar();return;
+
+// ---------- Modal de día ----------
+const dayModal = document.getElementById('dayModal');
+const dayEventsList = document.getElementById('dayEventsList');
+const dayModalTitle = document.getElementById('dayModalTitle');
+
+function openDayModal(dateStr){
+  selectedDayStr = dateStr;
+  const d = new Date(dateStr+'T00:00:00');
+  dayModalTitle.textContent = d.toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'});
+
+  dayEventsList.innerHTML = '';
+
+  const coverage = dayCareCoverage(dateStr);
+  const cbBlocks = careBlocksForDay(dateStr);
+  if(cbBlocks.length>0){
+    const cbHeader = document.createElement('div');
+    cbHeader.style.cssText = 'font-size:.75rem;color:var(--muted);font-weight:600;margin-top:4px;';
+    cbHeader.textContent = coverage.hasGap ? '🏠 Cuidado (⚠ hay horas sin asignar este día)' : '🏠 Cuidado';
+    dayEventsList.appendChild(cbHeader);
+    cbBlocks.forEach(cb=>{
+      const catLabel = cb.category==='mama'?'👩 Mamá':'👨 Papá';
+      const item = document.createElement('div');
+      item.className = 'day-event-item ' + cb.category;
+      item.innerHTML = `
+        <div class="info">
+          <b>${catLabel}</b>
+          <span>${cb.startDate} ${cb.startTime} → ${cb.endDate} ${cb.endTime}</span>
+        </div>
+        <button class="small-btn" data-id="${cb.id}">✏️</button>
+      `;
+      item.querySelector('button').addEventListener('click', ()=>{
+        dayModal.classList.remove('open');
+        openCareBlockModal(cb);
+      });
+      dayEventsList.appendChild(item);
+    });
+  } else {
+    const warn = document.createElement('div');
+    warn.style.cssText = 'font-size:.78rem;color:var(--accent);margin-bottom:4px;';
+    warn.textContent = '⚠ Este día no tiene bloque de cuidado asignado.';
+    dayEventsList.appendChild(warn);
   }
-  if(d===copySrc)return;
-  if(copyDsts.includes(d)){copyDsts=copyDsts.filter(x=>x!==d)}
-  else copyDsts.push(d);
-  const n=copyDsts.length;
-  document.getElementById('copyBannerText').textContent=`${n} día${n!==1?'s':''} seleccionado${n!==1?'s':''}`;
-  document.getElementById('copyBannerInfo').textContent=`Toca más días o presiona Aplicar`;
-  // show apply button
-  const btn=document.querySelector('.copy-banner button');
-  if(n>0){
-    btn.textContent='Aplicar';
-    btn.onclick=applyCopy;
-  }else{
-    btn.textContent='Cancelar';
-    btn.onclick=cancelCopy;
+
+  const actHeader = document.createElement('div');
+  actHeader.style.cssText = 'font-size:.75rem;color:var(--muted);font-weight:600;margin-top:10px;';
+  actHeader.textContent = '📌 Actividades';
+  dayEventsList.appendChild(actHeader);
+
+  const dayEvents = events.filter(e=>eventCoversDate(e,dateStr)).sort((a,b)=>a.start.localeCompare(b.start));
+  if(dayEvents.length===0){
+    const empty = document.createElement('div');
+    empty.className = 'empty-hint';
+    empty.textContent = 'Sin actividades este día';
+    dayEventsList.appendChild(empty);
   }
+  dayEvents.forEach(ev=>{
+    const item = document.createElement('div');
+    item.className = 'day-event-item actividad';
+    const rangeLabel = ev.endDate && ev.endDate!==ev.date ? ` (${ev.date} a ${ev.endDate})` : '';
+    item.innerHTML = `
+      <div class="info">
+        <b>${escapeHtml(ev.title)}</b>
+        <span>${ev.start} - ${ev.end}${rangeLabel}</span>
+      </div>
+      <button class="small-btn" data-id="${ev.id}">✏️</button>
+    `;
+    item.querySelector('button').addEventListener('click', ()=>{
+      dayModal.classList.remove('open');
+      openEventModal(ev);
+    });
+    dayEventsList.appendChild(item);
+  });
+
+  dayModal.classList.add('open');
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+document.getElementById('closeDayModal').addEventListener('click', ()=>dayModal.classList.remove('open'));
+document.getElementById('addFromDayBtn').addEventListener('click', ()=>{
+  dayModal.classList.remove('open');
+  openEventModal(null, selectedDayStr);
+});
+document.getElementById('addCareFromDayBtn').addEventListener('click', ()=>{
+  dayModal.classList.remove('open');
+  openCareBlockModal(null, selectedDayStr);
+});
+
+// ---------- Modal de evento ----------
+const eventModal = document.getElementById('eventModal');
+const eventModalTitle = document.getElementById('eventModalTitle');
+
+function openEventModal(ev, presetDate){
+  document.getElementById('editEventId').value = ev ? ev.id : '';
+  eventModalTitle.textContent = ev ? 'Editar actividad' : 'Nueva actividad';
+  document.getElementById('eventTitle').value = ev ? ev.title : '';
+  document.getElementById('eventDate').value = ev ? ev.date : (presetDate || fmtDateStr(new Date()));
+  document.getElementById('eventStart').value = ev ? ev.start : '08:00';
+  document.getElementById('eventEnd').value = ev ? ev.end : '09:00';
+  document.getElementById('eventNotes').value = ev ? (ev.notes||'') : '';
+  document.getElementById('repeatToggle').checked = false;
+  document.getElementById('repeatOptions').classList.remove('open');
+  document.getElementById('deleteEventBtn').style.display = ev ? 'block' : 'none';
+
+  const isMultiDay = ev && ev.endDate && ev.endDate !== ev.date;
+  document.getElementById('multiDayToggle').checked = !!isMultiDay;
+  document.getElementById('eventEndDateField').style.display = isMultiDay ? 'block' : 'none';
+  document.getElementById('eventEndDate').value = isMultiDay ? ev.endDate : '';
+  document.getElementById('eventStartLabel').textContent = isMultiDay ? 'Hora inicio (día 1)' : 'Hora inicio';
+  document.getElementById('eventEndLabel').textContent = isMultiDay ? 'Hora fin (último día)' : 'Hora fin';
+
+  renderTemplatesRow();
+  eventModal.classList.add('open');
+}
+
+function renderTemplatesRow(){
+  const row = document.getElementById('templatesRow');
+  row.innerHTML = '';
+  if(templates.length===0){
+    row.innerHTML = '<span style="font-size:.78rem;color:var(--muted);">No hay plantillas. Creá una en ⚙️ Plantillas.</span>';
+    return;
+  }
+  templates.forEach(t=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cat-btn';
+    b.style.flex = 'none';
+    b.style.fontSize = '.78rem';
+    b.style.padding = '6px 10px';
+    b.textContent = t.title;
+    b.addEventListener('click', ()=>{
+      document.getElementById('eventTitle').value = t.title;
+      document.getElementById('eventStart').value = t.start;
+      document.getElementById('eventEnd').value = t.end;
+    });
+    row.appendChild(b);
+  });
+}
+
+document.getElementById('multiDayToggle').addEventListener('change', (e)=>{
+  const on = e.target.checked;
+  document.getElementById('eventEndDateField').style.display = on ? 'block' : 'none';
+  document.getElementById('eventStartLabel').textContent = on ? 'Hora inicio (día 1)' : 'Hora inicio';
+  document.getElementById('eventEndLabel').textContent = on ? 'Hora fin (último día)' : 'Hora fin';
+});
+
+
+document.getElementById('repeatToggle').addEventListener('change', (e)=>{
+  document.getElementById('repeatOptions').classList.toggle('open', e.target.checked);
+});
+
+document.getElementById('cancelEventBtn').addEventListener('click', ()=>eventModal.classList.remove('open'));
+
+document.getElementById('addEventFab').addEventListener('click', ()=>openEventModal(null, fmtDateStr(currentDate)));
+
+// ---------- Bloques de cuidado ----------
+const careBlockModal = document.getElementById('careBlockModal');
+let selectedCareCategory = null;
+
+function openCareBlockModal(cb, presetDate){
+  selectedCareCategory = cb ? cb.category : null;
+  document.getElementById('editCareBlockId').value = cb ? cb.id : '';
+  document.getElementById('careBlockModalTitle').textContent = cb ? 'Editar bloque de cuidado' : 'Nuevo bloque de cuidado';
+  document.getElementById('careStartDate').value = cb ? cb.startDate : (presetDate || fmtDateStr(new Date()));
+  document.getElementById('careStartTime').value = cb ? cb.startTime : '08:00';
+  document.getElementById('careEndDate').value = cb ? cb.endDate : (presetDate || fmtDateStr(new Date()));
+  document.getElementById('careEndTime').value = cb ? cb.endTime : '20:00';
+  document.getElementById('deleteCareBlockBtn').style.display = cb ? 'block' : 'none';
+  document.getElementById('careRepeatToggle').checked = false;
+  document.getElementById('careRepeatOptions').classList.remove('open');
+  const alreadyInSeries = !!(cb && cb.seriesId);
+  document.getElementById('careRepeatRow').style.display = alreadyInSeries ? 'none' : 'flex';
+  document.querySelectorAll('.care-cat-btn').forEach(b=>{
+    b.classList.remove('sel-mama','sel-papa');
+    if(cb && b.dataset.cat===cb.category) b.classList.add('sel-'+cb.category);
+  });
+  careBlockModal.classList.add('open');
+}
+
+document.getElementById('careRepeatToggle').addEventListener('change', (e)=>{
+  document.getElementById('careRepeatOptions').classList.toggle('open', e.target.checked);
+});
+
+document.getElementById('addCareBlockFab').addEventListener('click', ()=>openCareBlockModal(null, fmtDateStr(currentDate)));
+
+document.querySelectorAll('.care-cat-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    selectedCareCategory = btn.dataset.cat;
+    document.querySelectorAll('.care-cat-btn').forEach(b=>b.classList.remove('sel-mama','sel-papa'));
+    btn.classList.add('sel-'+selectedCareCategory);
+  });
+});
+
+document.getElementById('cancelCareBlockBtn').addEventListener('click', ()=>careBlockModal.classList.remove('open'));
+
+document.getElementById('saveCareBlockBtn').addEventListener('click', async ()=>{
+  const id = document.getElementById('editCareBlockId').value;
+  const startDate = document.getElementById('careStartDate').value;
+  const startTime = document.getElementById('careStartTime').value;
+  const endDate = document.getElementById('careEndDate').value;
+  const endTime = document.getElementById('careEndTime').value;
+
+  if(!selectedCareCategory){ alert('Elegí quién cuida en este bloque.'); return; }
+  if(!startDate || !endDate){ alert('Completá las fechas.'); return; }
+  const start = toDateTime(startDate,startTime), end = toDateTime(endDate,endTime);
+  if(end <= start){ alert('La fecha/hora de fin debe ser posterior al inicio.'); return; }
+
+  const repeatChecked = document.getElementById('careRepeatToggle').checked;
+
+  if(id){
+    const cb = careBlocks.find(c=>c.id===id);
+    if(cb.seriesId){
+      const scope = confirm('Este bloque es parte de una repetición.\n\nAceptar = aplicar cambios a TODOS los bloques de la serie.\nCancelar = aplicar solo a este bloque.');
+      if(scope){
+        const spanMs = toDateTime(endDate,endTime) - toDateTime(startDate,startTime);
+        careBlocks.filter(c=>c.seriesId===cb.seriesId).forEach(c=>{
+          // desplazamiento respecto al bloque editado, preservando el patrón de días entre ocurrencias
+          const offsetMs = toDateTime(c.startDate,c.startTime) - start;
+          const newStart = new Date(start.getTime()+offsetMs);
+          const newEnd = new Date(newStart.getTime()+spanMs);
+          c.startDate = fmtDateStr(newStart); c.startTime = startTime;
+          c.endDate = fmtDateStr(newEnd); c.endTime = endTime;
+          c.category = selectedCareCategory;
+        });
+      } else {
+        Object.assign(cb, {startDate,startTime,endDate,endTime,category:selectedCareCategory,seriesId:null});
+      }
+    } else if(repeatChecked){
+      // El bloque no era parte de una serie, pero ahora se pide repetirlo: generar la serie a partir de este bloque
+      const freq = document.getElementById('careRepeatFreq').value;
+      const until = document.getElementById('careRepeatUntil').value;
+      if(!until){ alert('Elegí hasta cuándo repetir.'); return; }
+      const seriesId = uid();
+      const spanMs = end - start;
+      const step = freq==='biweekly'?14:7;
+      const untilD = new Date(until+'T23:59:59');
+      // Actualizar el bloque editado como primera ocurrencia de la serie
+      Object.assign(cb, {startDate,startTime,endDate,endTime,category:selectedCareCategory,seriesId});
+      let occStart = new Date(start);
+      occStart.setDate(occStart.getDate()+step);
+      while(occStart <= untilD){
+        const occEnd = new Date(occStart.getTime()+spanMs);
+        careBlocks.push({
+          id:uid(), seriesId,
+          startDate:fmtDateStr(occStart), startTime,
+          endDate:fmtDateStr(occEnd), endTime,
+          category:selectedCareCategory
+        });
+        occStart.setDate(occStart.getDate()+step);
+      }
+    } else {
+      Object.assign(cb, {startDate,startTime,endDate,endTime,category:selectedCareCategory});
+    }
+  } else {
+    const repeat = repeatChecked;
+    if(repeat){
+      const freq = document.getElementById('careRepeatFreq').value;
+      const until = document.getElementById('careRepeatUntil').value;
+      if(!until){ alert('Elegí hasta cuándo repetir.'); return; }
+      const seriesId = uid();
+      const spanMs = end - start;
+      const step = freq==='biweekly'?14:7;
+      const untilD = new Date(until+'T23:59:59');
+      let occStart = new Date(start);
+      while(occStart <= untilD){
+        const occEnd = new Date(occStart.getTime()+spanMs);
+        careBlocks.push({
+          id:uid(), seriesId,
+          startDate:fmtDateStr(occStart), startTime,
+          endDate:fmtDateStr(occEnd), endTime,
+          category:selectedCareCategory
+        });
+        occStart.setDate(occStart.getDate()+step);
+      }
+    } else {
+      careBlocks.push({id:uid(), startDate,startTime,endDate,endTime,category:selectedCareCategory});
+    }
+  }
+  await saveCareBlocks();
+  careBlockModal.classList.remove('open');
   renderCalendar();
-}
-function applyCopy(){
-  if(!copySrc||!copyDsts.length)return;
-  const src=getDayData(copySrc);
-  copyDsts.forEach(d=>{
-    monthData[d]={blocks:[...src.blocks],note:monthData[d]?.note||defNote(getWD(d))};
-  });
-  save(Y,M,monthData);
-  cancelCopy();
-  render();
-}
+});
 
-// WEEK
-function getWeeks(){
-  const dim=daysInMonth();const weeks=[];let w=[];
-  for(let d=1;d<=dim;d++){
-    const wd=getWD(d);w.push(d);
-    if(wd===6||d===dim){weeks.push([...w]);w=[];}
+document.getElementById('deleteCareBlockBtn').addEventListener('click', async ()=>{
+  const id = document.getElementById('editCareBlockId').value;
+  const cb = careBlocks.find(c=>c.id===id);
+  if(!cb) return;
+  if(cb.seriesId){
+    const scope = confirm('Este bloque es parte de una repetición.\n\nAceptar = eliminar TODOS los bloques de la serie.\nCancelar = eliminar solo este bloque.');
+    if(scope){
+      if(!confirm('¿Confirmás eliminar toda la serie?')) return;
+      careBlocks = careBlocks.filter(c=>c.seriesId!==cb.seriesId);
+    } else {
+      if(!confirm('¿Eliminar este bloque?')) return;
+      careBlocks = careBlocks.filter(c=>c.id!==id);
+    }
+  } else {
+    if(!confirm('¿Eliminar este bloque de cuidado?')) return;
+    careBlocks = careBlocks.filter(c=>c.id!==id);
   }
-  return weeks;
-}
-function renderWeek(){
-  const weeks=getWeeks();
-  if(curWeek>=weeks.length)curWeek=weeks.length-1;
-  if(curWeek<0)curWeek=0;
-  document.getElementById('wkLabel').textContent=`Semana ${curWeek+1} de ${weeks.length}`;
-  const cont=document.getElementById('wkCards');cont.innerHTML='';
-  weeks[curWeek].forEach(d=>{
-    const wd=getWD(d);const dd=getDayData(d);
-    const ow=owner(dd.blocks);const{a,v}=hrs(dd.blocks);
-    const isH=!!HOLIDAYS[dKey(Y,M,d)];
-    const cls=isH?'holiday':ow;
-    const who=isH?'🟡 Feriado':ow==='abel'?'Abel':ow==='vicky'?'Vicky':'Mixto';
-    const blLabel=dd.blocks.map((b,i)=>`${BLOCKS[i].l.split('–')[0].trim()}: ${b==='a'?'Abel':'Vicky'}`).join(' · ');
-    const dayEvs=getDayEvents(d);
-    const c=document.createElement('div');
-    c.className=`dc ${cls}`;
-    c.innerHTML=`<div class="dc-inner">
-      <div class="db ${cls}"><span class="dbn">${d}</span><span class="dbd">${DS[wd]}</span></div>
-      <div class="di-info">
-        <div class="di-who">${DAYS[wd]} — ${who}</div>
-        <div class="di-bl">${blLabel}</div>
-        ${dd.note?`<div class="di-note">📝 ${dd.note}</div>`:''}
-        ${dayEvs.map(e=>`<div class="di-ev">${EV_ICONS[e.type]||'📌'} ${e.title}${e.time?' '+e.time:''}</div>`).join('')}
-      </div>
-      <div class="dh"><div class="dhl">Abel</div><div class="dha">${a}h</div><div class="dhl">Vicky</div><div class="dhv">${v}h</div></div>
-    </div>`;
-    c.onclick=()=>openDayModal(d);
-    cont.appendChild(c);
+  await saveCareBlocks();
+  careBlockModal.classList.remove('open');
+  dayModal.classList.remove('open');
+  renderCalendar();
+});
+
+document.getElementById('saveEventBtn').addEventListener('click', async ()=>{
+  const id = document.getElementById('editEventId').value;
+  const title = document.getElementById('eventTitle').value.trim();
+  const date = document.getElementById('eventDate').value;
+  const isMultiDay = document.getElementById('multiDayToggle').checked;
+  const endDate = isMultiDay ? document.getElementById('eventEndDate').value : date;
+  const start = document.getElementById('eventStart').value;
+  const end = document.getElementById('eventEnd').value;
+  const notes = document.getElementById('eventNotes').value.trim();
+  const category = 'actividad';
+
+  if(!title || !date){
+    alert('Completá título y fecha.');
+    return;
+  }
+  if(isMultiDay && (!endDate || endDate < date)){
+    alert('La fecha "hasta" debe ser posterior a la fecha de inicio.');
+    return;
+  }
+
+  if(id){
+    const ev = events.find(e=>e.id===id);
+    if(ev.seriesId){
+      const scope = confirm('Este evento es parte de una repetición.\n\nAceptar = aplicar cambios a TODOS los eventos de la serie.\nCancelar = aplicar solo a este evento.');
+      if(scope){
+        const origDate = ev.date, origEndDate = eventEndDate(ev);
+        const spanDays = Math.round((new Date(origEndDate)-new Date(origDate))/86400000);
+        events.filter(e=>e.seriesId===ev.seriesId).forEach(e=>{
+          const newEnd = new Date(e.date+'T00:00:00');
+          newEnd.setDate(newEnd.getDate()+spanDays);
+          Object.assign(e, {title,start,end,notes,category,endDate:fmtDateStr(newEnd)});
+        });
+      } else {
+        Object.assign(ev, {title,date,endDate,start,end,notes,category,seriesId:null});
+      }
+    } else {
+      Object.assign(ev, {title,date,endDate,start,end,notes,category});
+    }
+  } else {
+    const repeat = document.getElementById('repeatToggle').checked;
+    if(repeat){
+      const freq = document.getElementById('repeatFreq').value;
+      const until = document.getElementById('repeatUntil').value;
+      if(!until){ alert('Elegí hasta cuándo repetir.'); return; }
+      const seriesId = uid();
+      const spanDays = Math.round((new Date(endDate)-new Date(date))/86400000);
+      let d = new Date(date+'T00:00:00');
+      const untilD = new Date(until+'T00:00:00');
+      const step = freq==='daily'?1:freq==='biweekly'?14:7;
+      while(d <= untilD){
+        const occEnd = new Date(d);
+        occEnd.setDate(occEnd.getDate()+spanDays);
+        events.push({id:uid(),seriesId,title,date:fmtDateStr(d),endDate:fmtDateStr(occEnd),start,end,notes,category});
+        d.setDate(d.getDate()+step);
+      }
+    } else {
+      events.push({id:uid(),title,date,endDate,start,end,notes,category});
+    }
+  }
+
+  await saveEvents();
+  eventModal.classList.remove('open');
+  renderCalendar();
+});
+
+document.getElementById('deleteEventBtn').addEventListener('click', async ()=>{
+  const id = document.getElementById('editEventId').value;
+  const ev = events.find(e=>e.id===id);
+  if(!ev) return;
+  if(ev.seriesId){
+    const scope = confirm('Este evento es parte de una repetición.\n\nAceptar = eliminar TODOS los eventos de la serie.\nCancelar = eliminar solo este evento.');
+    if(scope){
+      if(!confirm('¿Confirmás eliminar toda la serie repetida?')) return;
+      events = events.filter(e=>e.seriesId!==ev.seriesId);
+    } else {
+      if(!confirm('¿Eliminar este evento?')) return;
+      events = events.filter(e=>e.id!==id);
+    }
+  } else {
+    if(!confirm('¿Eliminar este evento?')) return;
+    events = events.filter(e=>e.id!==id);
+  }
+  await saveEvents();
+  eventModal.classList.remove('open');
+  dayModal.classList.remove('open');
+  renderCalendar();
+});
+
+// ---------- Navegación de mes ----------
+document.getElementById('prevMonth').addEventListener('click', ()=>{
+  currentDate.setMonth(currentDate.getMonth()-1);
+  renderCalendar();
+});
+document.getElementById('nextMonth').addEventListener('click', ()=>{
+  currentDate.setMonth(currentDate.getMonth()+1);
+  renderCalendar();
+});
+
+// ---------- Exportar PDF ----------
+// Agrupa los bloques de cuidado ordenados cronológicamente en tramos legibles
+// (fusiona bloques consecutivos y contiguos del mismo padre en un solo tramo,
+// como pediría un informe para uso judicial: "de lunes X hs a martes Y hs: Papá").
+function buildCareNarrative(rangeStart, rangeEnd){
+  const rs = toDateTime(rangeStart, '00:00'), re = toDateTime(rangeEnd, '23:59');
+  const sorted = careBlocks
+    .map(cb=>({
+      cat: cb.category,
+      start: toDateTime(cb.startDate, cb.startTime),
+      end: toDateTime(cb.endDate, cb.endTime)
+    }))
+    .map(b=>({ cat:b.cat, start: b.start<rs?rs:b.start, end: b.end>re?re:b.end }))
+    .filter(b=>b.end>b.start)
+    .sort((a,b)=>a.start-b.start);
+
+  // Fusionar tramos contiguos/superpuestos de la misma categoría
+  const merged = [];
+  sorted.forEach(b=>{
+    const last = merged[merged.length-1];
+    if(last && last.cat===b.cat && b.start <= last.end){
+      if(b.end > last.end) last.end = b.end;
+    } else {
+      merged.push({cat:b.cat, start:b.start, end:b.end});
+    }
+  });
+
+  const diasSemana = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const fmt = (d)=>`${diasSemana[d.getDay()]} ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} a las ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+  return merged.map(m=>{
+    const who = m.cat==='mama' ? 'Progenitora' : 'Progenitor';
+    return `De ${fmt(m.start)} a ${fmt(m.end)}: ${who}`;
   });
 }
-function changeWeek(dir){const w=getWeeks();curWeek=Math.max(0,Math.min(w.length-1,curWeek+dir));renderWeek()}
 
-// EVENTS TAB
-function renderEvents(){
-  document.getElementById('evMonthTitle').textContent=`${MONTHS[M]} ${Y}`;
-  const list=document.getElementById('evList');list.innerHTML='';
-  if(!evData.length){list.innerHTML='<div class="ev-empty">No hay eventos este mes.<br>Agregá citas, terapias, cumpleaños...</div>';return}
-  const sorted=[...evData].sort((a,b)=>a.day-b.day);
-  sorted.forEach((ev,i)=>{
-    const card=document.createElement('div');card.className='ev-card';
-    card.innerHTML=`
-      <div class="ev-date-badge"><div class="edn">${ev.day}</div><div class="edm">${MONTHS[M].slice(0,3)}</div></div>
-      <div class="ev-info">
-        <div class="eit">${EV_ICONS[ev.type]||'📌'} ${ev.title}</div>
-        <div class="eis">${DAYS[getWD(ev.day)]}${ev.time?' · '+ev.time:''} · ${ev.type}</div>
+function generatePdf(rangeStart, rangeEnd){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const rangeLabelTitle = rangeStart===rangeEnd ? rangeStart : `${rangeStart} a ${rangeEnd}`;
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // ---------- Encabezado ----------
+  doc.setFontSize(17);
+  doc.setTextColor(40,40,40);
+  doc.text('Registro de cuidado compartido', 14, 18);
+  doc.setFontSize(10);
+  doc.setTextColor(120,120,120);
+  doc.text(`Período: ${rangeLabelTitle}  ·  Generado el ${fmtDateStr(new Date())}`, 14, 25);
+
+  // ---------- Calendario visual (grilla tipo mes) ----------
+  const startD = new Date(rangeStart+'T00:00:00');
+  const endD = new Date(rangeEnd+'T00:00:00');
+  let cursor = new Date(startD.getFullYear(), startD.getMonth(), 1);
+  let firstCalendar = true;
+  let finalY = 30;
+
+  while(cursor <= endD){
+    const year = cursor.getFullYear(), month = cursor.getMonth();
+    const monthLabel = cursor.toLocaleDateString('es-ES', {month:'long', year:'numeric'});
+    const firstDay = new Date(year, month, 1);
+    const startOffset = firstDay.getDay();
+    const gridStart = new Date(year, month, 1 - startOffset);
+
+    if(!firstCalendar){ doc.addPage(); finalY = 20; }
+    firstCalendar = false;
+
+    doc.setFontSize(12);
+    doc.setTextColor(40,40,40);
+    doc.text(monthLabel.charAt(0).toUpperCase()+monthLabel.slice(1), 14, finalY);
+    finalY += 4;
+
+    const headRow = [['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']];
+    const bodyRows = [];
+    const cellColors = [];
+    for(let w=0; w<6; w++){
+      const row = [];
+      const rowColors = [];
+      for(let d=0; d<7; d++){
+        const cellDate = new Date(gridStart);
+        cellDate.setDate(gridStart.getDate() + w*7 + d);
+        const inMonth = cellDate.getMonth()===month;
+        const cellStr = fmtDateStr(cellDate);
+        if(!inMonth){ row.push(''); rowColors.push(null); continue; }
+        const cov = dayCareCoverage(cellStr);
+        let colorHex = null;
+        if(cov.cats.has('mama') && cov.cats.has('papa')) colorHex = [255,235,240];
+        else if(cov.cats.has('mama')) colorHex = [252,220,232];
+        else if(cov.cats.has('papa')) colorHex = [220,232,250];
+        row.push(String(cellDate.getDate()));
+        rowColors.push(colorHex);
+      }
+      bodyRows.push(row);
+      cellColors.push(rowColors);
+    }
+
+    doc.autoTable({
+      startY: finalY,
+      head: headRow,
+      body: bodyRows,
+      theme: 'grid',
+      styles: { fontSize: 9, halign: 'center', cellPadding: 3, minCellHeight: 10 },
+      headStyles: { fillColor: [230,225,215], textColor: [80,80,80] },
+      didParseCell: (data)=>{
+        if(data.section==='body'){
+          const color = cellColors[data.row.index][data.column.index];
+          if(color) data.cell.styles.fillColor = color;
+        }
+      },
+      margin: { left: 14, right: 14 }
+    });
+    finalY = doc.lastAutoTable.finalY + 6;
+
+    cursor = new Date(year, month+1, 1);
+  }
+
+  // Leyenda de colores
+  doc.setFontSize(8.5);
+  doc.setFillColor(252,220,232); doc.rect(14, finalY, 4, 4, 'F');
+  doc.setTextColor(80,80,80); doc.text('Progenitora', 20, finalY+3.5);
+  doc.setFillColor(220,232,250); doc.rect(60, finalY, 4, 4, 'F');
+  doc.text('Progenitor', 66, finalY+3.5);
+  doc.setFillColor(255,235,240); doc.rect(100, finalY, 4, 4, 'F');
+  doc.text('Ambos (cambio de turno ese día)', 106, finalY+3.5);
+  finalY += 10;
+
+  // ---------- Detalle en texto de los tramos de cuidado ----------
+  if(finalY > 250){ doc.addPage(); finalY = 20; }
+  doc.setFontSize(12);
+  doc.setTextColor(40,40,40);
+  doc.text('Detalle de tramos de cuidado', 14, finalY);
+  finalY += 3;
+
+  const narrative = buildCareNarrative(rangeStart, rangeEnd);
+  doc.setFontSize(9.5);
+  doc.setTextColor(60,60,60);
+  if(narrative.length===0){
+    doc.text('No hay bloques de cuidado cargados en este período.', 14, finalY+6);
+    finalY += 10;
+  } else {
+    doc.autoTable({
+      startY: finalY + 4,
+      head: [['Tramo de cuidado']],
+      body: narrative.map(n=>[n]),
+      theme: 'striped',
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [201,98,42], textColor: [255,255,255] },
+      margin: { left: 14, right: 14 }
+    });
+    finalY = doc.lastAutoTable.finalY + 8;
+  }
+
+  // ---------- Resumen de horas por semana ----------
+  if(finalY > 250){ doc.addPage(); finalY = 20; }
+  doc.setFontSize(12);
+  doc.setTextColor(40,40,40);
+  doc.text('Horas totales por semana', 14, finalY);
+  finalY += 3;
+
+  const weekRows = [];
+  let wCursor = new Date(rangeStart+'T00:00:00');
+  wCursor.setDate(wCursor.getDate() - wCursor.getDay()); // retrocede al domingo
+  const rangeEndDate = new Date(rangeEnd+'T00:00:00');
+  while(wCursor <= rangeEndDate){
+    const wStart = fmtDateStr(wCursor);
+    const wEndDate = new Date(wCursor); wEndDate.setDate(wEndDate.getDate()+6);
+    const wEnd = fmtDateStr(wEndDate);
+    const hMama = categoryHoursInRange('mama', wStart, wEnd);
+    const hPapa = categoryHoursInRange('papa', wStart, wEnd);
+    if(hMama>0 || hPapa>0){
+      weekRows.push([`${wStart} a ${wEnd}`, hMama.toFixed(1)+' h', hPapa.toFixed(1)+' h']);
+    }
+    wCursor.setDate(wCursor.getDate()+7);
+  }
+
+  doc.autoTable({
+    startY: finalY + 4,
+    head: [['Semana', 'Progenitora', 'Progenitor']],
+    body: weekRows.length ? weekRows : [['Sin datos', '0.0 h', '0.0 h']],
+    theme: 'grid',
+    styles: { fontSize: 9.5, cellPadding: 4, halign: 'center' },
+    columnStyles: { 0: { halign: 'left' } },
+    headStyles: { fillColor: [59,90,110], textColor: [255,255,255] },
+    margin: { left: 14, right: 14 }
+  });
+  finalY = doc.lastAutoTable.finalY + 8;
+
+  // ---------- Resumen total del período ----------
+  if(finalY > 260){ doc.addPage(); finalY = 20; }
+  const totalMama = categoryHoursInRange('mama', rangeStart, rangeEnd);
+  const totalPapa = categoryHoursInRange('papa', rangeStart, rangeEnd);
+  const totalHoras = totalMama + totalPapa;
+  const pctMama = totalHoras>0 ? (totalMama/totalHoras*100) : 0;
+  const pctPapa = totalHoras>0 ? (totalPapa/totalHoras*100) : 0;
+
+  doc.autoTable({
+    startY: finalY,
+    head: [['Total del período', 'Horas', '% del período']],
+    body: [
+      ['Progenitora', totalMama.toFixed(1)+' h', pctMama.toFixed(0)+'%'],
+      ['Progenitor', totalPapa.toFixed(1)+' h', pctPapa.toFixed(0)+'%'],
+    ],
+    theme: 'grid',
+    styles: { fontSize: 10, cellPadding: 4, halign: 'center', fontStyle: 'bold' },
+    columnStyles: { 0: { halign: 'left' } },
+    headStyles: { fillColor: [201,98,42], textColor: [255,255,255] },
+    margin: { left: 14, right: 14 }
+  });
+  finalY = doc.lastAutoTable.finalY + 10;
+
+  // ---------- Nota metodológica ----------
+  if(finalY > 260){ doc.addPage(); finalY = 20; }
+  doc.setFontSize(8);
+  doc.setTextColor(130,130,130);
+  const nota = doc.splitTextToSize(
+    'Este informe se generó automáticamente a partir de los registros cargados en la aplicación ' +
+    '"Cuidados" por los progenitores. Cada tramo indica el horario exacto de inicio y fin del ' +
+    'cuidado a cargo de cada parte. Las horas totales se calculan sumando el tiempo efectivo de ' +
+    'cuidado de cada progenitor, sin superposición ni doble conteo entre bloques.',
+    pageWidth - 28
+  );
+  doc.text(nota, 14, finalY);
+
+  doc.save(`cuidados_${rangeStart}_a_${rangeEnd}.pdf`);
+}
+
+let pendingExportType = null;
+
+function openExportRangeModal(type){
+  pendingExportType = type;
+  document.getElementById('exportRangeTitle').textContent = type==='pdf' ? 'Rango para exportar PDF' : 'Rango para exportar .ics';
+  const monthStart = fmtDateStr(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1));
+  const monthEnd = fmtDateStr(new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0));
+  document.getElementById('exportRangeStart').value = monthStart;
+  document.getElementById('exportRangeEnd').value = monthEnd;
+  document.getElementById('exportRangeModal').classList.add('open');
+}
+
+document.getElementById('exportPdfBtn').addEventListener('click', ()=>openExportRangeModal('pdf'));
+document.getElementById('exportIcsBtn').addEventListener('click', ()=>openExportRangeModal('ics'));
+
+document.getElementById('cancelExportRangeBtn').addEventListener('click', ()=>{
+  document.getElementById('exportRangeModal').classList.remove('open');
+});
+
+document.getElementById('confirmExportRangeBtn').addEventListener('click', ()=>{
+  const rangeStart = document.getElementById('exportRangeStart').value;
+  const rangeEnd = document.getElementById('exportRangeEnd').value;
+  if(!rangeStart || !rangeEnd){ alert('Completá ambas fechas.'); return; }
+  if(rangeEnd < rangeStart){ alert('La fecha "hasta" debe ser posterior a "desde".'); return; }
+  document.getElementById('exportRangeModal').classList.remove('open');
+  if(pendingExportType==='pdf') generatePdf(rangeStart, rangeEnd);
+  else if(pendingExportType==='ics') generateIcsForRange(rangeStart, rangeEnd);
+});
+
+// ---------- Gestión de plantillas ----------
+const templatesModal = document.getElementById('templatesModal');
+const templateFormModal = document.getElementById('templateFormModal');
+
+document.getElementById('manageTemplatesBtn').addEventListener('click', ()=>{
+  renderTemplatesList();
+  templatesModal.classList.add('open');
+});
+document.getElementById('closeTemplatesModal').addEventListener('click', ()=>templatesModal.classList.remove('open'));
+
+let editingTplId = null;
+
+function renderTemplatesList(){
+  const list = document.getElementById('templatesList');
+  list.innerHTML = '';
+  if(templates.length===0){
+    list.innerHTML = '<div class="empty-hint">No hay plantillas todavía</div>';
+    return;
+  }
+  templates.forEach(t=>{
+    const item = document.createElement('div');
+    item.className = 'day-event-item actividad';
+    const noteLine = t.note ? `<br><span style="color:var(--muted);">${escapeHtml(t.note)}</span>` : '';
+    item.innerHTML = `
+      <div class="info">
+        <b>${escapeHtml(t.title)}</b>
+        <span>${t.start} - ${t.end}${noteLine}</span>
       </div>
-      <button class="ev-del" onclick="deleteEvent(${i})">×</button>`;
-    list.appendChild(card);
+      <div>
+        <button class="small-btn" data-action="edit" data-id="${t.id}">✏️</button>
+        <button class="small-btn" data-action="del" data-id="${t.id}">🗑️</button>
+      </div>
+    `;
+    item.querySelector('[data-action="edit"]').addEventListener('click', ()=>openTemplateForm(t));
+    item.querySelector('[data-action="del"]').addEventListener('click', async ()=>{
+      if(confirm('¿Eliminar esta plantilla?')){
+        templates = templates.filter(x=>x.id!==t.id);
+        await saveTemplates();
+        renderTemplatesList();
+      }
+    });
+    list.appendChild(item);
   });
 }
-function deleteEvent(i){evData.splice(i,1);saveEv(Y,M,evData);renderEvents();renderCalendar();if(curTab==='semana')renderWeek()}
 
-// DAY MODAL
-function openDayModal(day){
-  if(copyMode)return;
-  editDay=day;
-  const wd=getWD(day);
-  const dd=getDayData(day);
-  tmpBlocks=[...dd.blocks];
-  tmpEvents=getDayEvents(day).map(e=>({...e}));
-  const isH=HOLIDAYS[dKey(Y,M,day)];
-  document.getElementById('mTitle').textContent=`${DAYS[wd]} ${day}`;
-  document.getElementById('mSub').textContent=`${MONTHS[M]} ${Y}`;
-  document.getElementById('holBanner').style.display=isH?'flex':'none';
-  document.getElementById('holText').textContent=isH||'';
-  document.getElementById('noteInp').value=dd.note||'';
-  document.getElementById('evInp').value='';
-  renderModalBlocks();renderModalEvents();updateModalTot();
-  document.getElementById('dayOv').classList.add('open');
+function openTemplateForm(t){
+  editingTplId = t ? t.id : null;
+  document.getElementById('tplTitle').value = t ? t.title : '';
+  document.getElementById('tplStart').value = t ? t.start : '09:00';
+  document.getElementById('tplEnd').value = t ? t.end : '10:00';
+  document.getElementById('tplNote').value = t ? (t.note||'') : '';
+  document.querySelector('#templateFormModal h2').textContent = t ? 'Editar plantilla' : 'Nueva plantilla';
+  templatesModal.classList.remove('open');
+  templateFormModal.classList.add('open');
 }
-function renderModalBlocks(){
-  const c=document.getElementById('blkContainer');c.innerHTML='';
-  BLOCKS.forEach((bd,i)=>{
-    const r=document.createElement('div');r.className='blk-row';
-    r.innerHTML=`<span class="bt">${bd.l}</span><span class="bh">${bd.h}h</span>
-      <div class="btog">
-        <button class="ob ${tmpBlocks[i]==='a'?'oa':''}" onclick="setBlk(${i},'a')">Abel</button>
-        <button class="ob ${tmpBlocks[i]==='v'?'ov':''}" onclick="setBlk(${i},'v')">Vicky</button>
+
+document.getElementById('addTemplateBtn').addEventListener('click', ()=>openTemplateForm(null));
+
+document.getElementById('cancelTplBtn').addEventListener('click', ()=>{
+  templateFormModal.classList.remove('open');
+  templatesModal.classList.add('open');
+});
+
+document.getElementById('saveTplBtn').addEventListener('click', async ()=>{
+  const title = document.getElementById('tplTitle').value.trim();
+  const start = document.getElementById('tplStart').value;
+  const end = document.getElementById('tplEnd').value;
+  const note = document.getElementById('tplNote').value.trim();
+  if(!title){
+    alert('Completá el título.');
+    return;
+  }
+  if(editingTplId){
+    const t = templates.find(x=>x.id===editingTplId);
+    Object.assign(t, {title, start, end, note});
+  } else {
+    templates.push({id:uid(), title, start, end, note});
+  }
+  await saveTemplates();
+  editingTplId = null;
+  templateFormModal.classList.remove('open');
+  templatesModal.classList.add('open');
+  renderTemplatesList();
+});
+
+// ---------- Exportar a formato .ics (estándar, importable en Google/Apple/Outlook) ----------
+function icsDateTime(dateStr, timeStr){
+  // dateStr: YYYY-MM-DD, timeStr: HH:MM  -> YYYYMMDDTHHMMSS (hora local)
+  const [y,m,d] = dateStr.split('-');
+  const [h,min] = timeStr.split(':');
+  return `${y}${m}${d}T${h}${min}00`;
+}
+function icsEscapeText(str){
+  return String(str).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+}
+
+function buildIcs(evsToExport, cbsToExport){
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Cuidados//ES',
+    'CALSCALE:GREGORIAN'
+  ];
+  const now = new Date();
+  const dtstamp = icsDateTime(fmtDateStr(now), now.toTimeString().slice(0,5));
+
+  (evsToExport||[]).forEach(ev=>{
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:' + ev.id + '@cuidados');
+    lines.push('DTSTAMP:' + dtstamp);
+    lines.push('DTSTART:' + icsDateTime(ev.date, ev.start));
+    lines.push('DTEND:' + icsDateTime(eventEndDate(ev), ev.end));
+    lines.push('SUMMARY:' + icsEscapeText(ev.title));
+    if(ev.notes) lines.push('DESCRIPTION:' + icsEscapeText(ev.notes));
+    lines.push('END:VEVENT');
+  });
+
+  (cbsToExport||[]).forEach(cb=>{
+    const catLabel = cb.category==='mama'?'Mamá':'Papá';
+    lines.push('BEGIN:VEVENT');
+    lines.push('UID:' + cb.id + '@cuidados-bloque');
+    lines.push('DTSTAMP:' + dtstamp);
+    lines.push('DTSTART:' + icsDateTime(cb.startDate, cb.startTime));
+    lines.push('DTEND:' + icsDateTime(cb.endDate, cb.endTime));
+    lines.push('SUMMARY:' + icsEscapeText(`Cuidado: ${catLabel}`));
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+function downloadIcs(evsToExport, cbsToExport, filename){
+  const ics = buildIcs(evsToExport, cbsToExport);
+  const blob = new Blob([ics], {type:'text/calendar;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function generateIcsForRange(rangeStart, rangeEnd){
+  const rangeEvents = events.filter(e=>eventCoversAnyDateInRange(e, rangeStart, rangeEnd));
+  const rangeCareBlocks = careBlocks.filter(cb=>careBlockHoursInRange(cb, rangeStart, rangeEnd) > 0);
+  if(rangeEvents.length===0 && rangeCareBlocks.length===0){
+    alert('No hay nada en ese rango para exportar.');
+    return;
+  }
+  downloadIcs(rangeEvents, rangeCareBlocks, `cuidados_${rangeStart}_a_${rangeEnd}.ics`);
+}
+
+// ---------- Exportar / importar propuesta ----------
+document.getElementById('exportProposalBtn').addEventListener('click', ()=>{
+  const payload = {
+    tipo: 'propuesta_cuidados_v2',
+    generado: new Date().toISOString(),
+    eventos: events,
+    bloques: careBlocks,
+    plantillas: templates
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const fechaStr = fmtDateStr(new Date());
+  a.download = `respaldo_cuidados_${fechaStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('deleteMonthBtn').addEventListener('click', async ()=>{
+  const monthStr = fmtDateStr(currentDate).slice(0,7);
+  const monthLabelTxt = currentDate.toLocaleDateString('es-ES', {month:'long', year:'numeric'});
+  const monthRangeStart = `${monthStr}-01`;
+  const monthRangeEnd = fmtDateStr(new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0));
+
+  const evsToDelete = events.filter(e=>eventCoversAnyDateInRange(e, monthRangeStart, monthRangeEnd));
+  const cbsToDelete = careBlocks.filter(cb=>careBlockHoursInRange(cb, monthRangeStart, monthRangeEnd) > 0);
+
+  if(evsToDelete.length===0 && cbsToDelete.length===0){
+    alert(`No hay nada cargado en ${monthLabelTxt} para borrar.`);
+    document.getElementById('moreOptionsMenu').style.display = 'none';
+    return;
+  }
+
+  const confirmMsg = `Vas a borrar de ${monthLabelTxt}:\n\n`
+    + `• ${evsToDelete.length} actividad(es)\n`
+    + `• ${cbsToDelete.length} bloque(s) de cuidado\n\n`
+    + `Esto no se puede deshacer. Te recomendamos exportar un respaldo antes.\n\n`
+    + `¿Confirmás borrar igual?`;
+  if(!confirm(confirmMsg)) return;
+  if(!confirm('Última confirmación: ¿SEGURO que querés borrar todo ese mes?')) return;
+
+  const evIdsToDelete = new Set(evsToDelete.map(e=>e.id));
+  const cbIdsToDelete = new Set(cbsToDelete.map(cb=>cb.id));
+  events = events.filter(e=>!evIdsToDelete.has(e.id));
+  careBlocks = careBlocks.filter(cb=>!cbIdsToDelete.has(cb.id));
+
+  await persistAll();
+  renderCalendar();
+  document.getElementById('moreOptionsMenu').style.display = 'none';
+  alert(`${monthLabelTxt} fue borrado y guardado en el servidor.`);
+});
+
+document.getElementById('importProposalBtn').addEventListener('click', ()=>{
+  document.getElementById('importFileInput').click();
+});
+
+let pendingProposalEvents = [];
+let pendingProposalBlocks = [];
+let pendingProposalTemplates = [];
+
+document.getElementById('importFileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const data = JSON.parse(evt.target.result);
+      const evs = data.eventos || [];
+      const blocks = data.bloques || [];
+      const tpls = data.plantillas || [];
+      if(evs.length===0 && blocks.length===0){
+        alert('El archivo no tiene eventos ni bloques válidos.');
+        return;
+      }
+      pendingProposalEvents = evs;
+      pendingProposalBlocks = blocks;
+      pendingProposalTemplates = tpls;
+      document.getElementById('proposalCount').textContent = `${evs.length} actividades, ${blocks.length} bloques de cuidado`;
+      const preview = document.getElementById('proposalPreview');
+      const evLines = evs.slice(0,8).map(ev=>`<div>📌 ${ev.date} ${ev.start}-${ev.end} ${escapeHtml(ev.title||'')}</div>`);
+      const cbLines = blocks.slice(0,8).map(cb=>{
+        const who = cb.category==='mama'?'Mamá':'Papá';
+        return `<div>🏠 ${cb.startDate} ${cb.startTime} → ${cb.endDate} ${cb.endTime} (${who})</div>`;
+      });
+      preview.innerHTML = [...evLines, ...cbLines].join('') || '<div>Sin detalle para mostrar</div>';
+      document.getElementById('proposalModal').classList.add('open');
+    }catch(err){
+      alert('No se pudo leer el archivo. ¿Es un JSON de Cuidados válido?');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+document.getElementById('cancelProposalBtn').addEventListener('click', ()=>{
+  document.getElementById('proposalModal').classList.remove('open');
+  pendingProposalEvents = [];
+  pendingProposalBlocks = [];
+  pendingProposalTemplates = [];
+});
+
+// Huellas de contenido para detectar duplicados al importar (no por id, que siempre es nuevo)
+function eventFingerprint(ev){
+  return [ev.date, ev.endDate||ev.date, ev.start, ev.end, (ev.title||'').trim().toLowerCase()].join('|');
+}
+function careBlockFingerprint(cb){
+  return [cb.startDate, cb.startTime, cb.endDate||cb.startDate, cb.endTime, cb.category].join('|');
+}
+
+document.getElementById('mergeProposalBtn').addEventListener('click', async ()=>{
+  const existingEventFingerprints = new Set(events.map(eventFingerprint));
+  const existingBlockFingerprints = new Set(careBlocks.map(careBlockFingerprint));
+  let skippedEvents = 0, skippedBlocks = 0;
+
+  pendingProposalEvents.forEach(ev=>{
+    const candidate = {
+      id: uid(),
+      title: ev.title || 'Evento importado',
+      date: ev.date,
+      endDate: ev.endDate || ev.date,
+      start: ev.start || '00:00',
+      end: ev.end || '00:00',
+      notes: ev.notes || '',
+      category: 'actividad'
+    };
+    const fp = eventFingerprint(candidate);
+    if(existingEventFingerprints.has(fp)){ skippedEvents++; return; }
+    existingEventFingerprints.add(fp);
+    events.push(candidate);
+  });
+  pendingProposalBlocks.forEach(cb=>{
+    const candidate = {
+      id: uid(),
+      startDate: cb.startDate,
+      startTime: cb.startTime || '00:00',
+      endDate: cb.endDate || cb.startDate,
+      endTime: cb.endTime || '00:00',
+      category: cb.category === 'papa' ? 'papa' : 'mama'
+    };
+    const fp = careBlockFingerprint(candidate);
+    if(existingBlockFingerprints.has(fp)){ skippedBlocks++; return; }
+    existingBlockFingerprints.add(fp);
+    careBlocks.push(candidate);
+  });
+  // Plantillas: solo agregamos las que no existan ya (por título) para no duplicar
+  pendingProposalTemplates.forEach(t=>{
+    if(!templates.some(existing=>existing.title===t.title)){
+      templates.push({id: uid(), title: t.title, start: t.start||'09:00', end: t.end||'10:00'});
+    }
+  });
+  document.getElementById('mergeProposalBtn').textContent = 'Guardando...';
+  document.getElementById('mergeProposalBtn').disabled = true;
+  await persistAll();
+  document.getElementById('mergeProposalBtn').textContent = 'Agregar a mi calendario';
+  document.getElementById('mergeProposalBtn').disabled = false;
+  document.getElementById('proposalModal').classList.remove('open');
+  pendingProposalEvents = [];
+  pendingProposalBlocks = [];
+  pendingProposalTemplates = [];
+  renderCalendar();
+  const skipMsg = (skippedEvents>0 || skippedBlocks>0)
+    ? `\n\n(Se omitieron ${skippedEvents} actividad(es) y ${skippedBlocks} bloque(s) que ya estaban cargados, para no duplicar.)`
+    : '';
+  alert('Datos importados y guardados en el servidor.' + skipMsg);
+});
+
+document.getElementById('toggleActivitiesBtn').addEventListener('click', ()=>{
+  showActivities = !showActivities;
+  localStorage.setItem('cuidados_show_activities', showActivities);
+  document.getElementById('toggleActivitiesBtn').textContent = showActivities ? '👁️ Ocultar actividades' : '🙈 Mostrar actividades';
+  renderCalendar();
+});
+
+// ---------- Init ----------
+function renderTodayBanner(){
+  const banner = document.getElementById('todayBanner');
+  const todayStr = fmtDateStr(new Date());
+  const blocks = careBlocksForDay(todayStr).slice().sort((a,b)=> toDateTime(a.startDate,a.startTime)-toDateTime(b.startDate,b.startTime));
+  const dayEvents = events.filter(e=>eventCoversDate(e,todayStr)).sort((a,b)=>a.start.localeCompare(b.start));
+
+  if(blocks.length===0 && dayEvents.length===0){
+    banner.style.display = 'none';
+    return;
+  }
+
+  let lines = [];
+  blocks.forEach(cb=>{
+    const who = cb.category==='mama' ? 'Mamá' : 'Papá';
+    lines.push(`Hoy tiene a ${who} de ${cb.startTime} a ${cb.endTime}`);
+  });
+  const handoff = dayHandoffTime(todayStr);
+  if(handoff){
+    lines.push(`🔄 Hoy hay cambio de cuidador a las ${handoff}`);
+  }
+  if(dayEvents.length>0){
+    const actList = dayEvents.map(e=>`${e.title} (${e.start}-${e.end})`).join(', ');
+    lines.push(`Actividades: ${actList}`);
+  }
+
+  banner.innerHTML = `<b>Hoy</b>` + lines.map(l=>escapeHtml(l)).join('<br>');
+  banner.style.display = 'block';
+}
+
+function refreshAll(){
+  renderTodayBanner();
+  renderCalendar();
+  renderDiagnostico();
+}
+
+function renderDiagnostico(){
+  let el = document.getElementById('diagFooter');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'diagFooter';
+    el.style.cssText = 'text-align:center;font-size:.65rem;color:#bbb;padding:10px 0 20px;';
+    el.innerHTML = `<div id="diagText"></div><button id="forceReloadBtn" style="margin-top:6px;font-size:.65rem;padding:4px 10px;border-radius:6px;border:1px solid #ccc;background:#fff;">🔄 Releer desde el servidor</button>`;
+    document.querySelector('main').appendChild(el);
+    document.getElementById('forceReloadBtn').addEventListener('click', async ()=>{
+      const btn = document.getElementById('forceReloadBtn');
+      btn.textContent = 'Leyendo...';
+      try{
+        const { getDoc } = window.__firebase;
+        const snap = await getDoc(getFamiliaDocRef());
+        if(snap.exists()){
+          const data = snap.data();
+          events = data.events || [];
+          careBlocks = data.careBlocks || [];
+          templates = data.templates || templates;
+          alert(`Leído directo del servidor:\n\neventos: ${events.length}\nbloques: ${careBlocks.length}\núltima actualización: ${data.updatedAt ? new Date(data.updatedAt).toLocaleString('es-AR') : 'desconocida'}`);
+          refreshAll();
+        } else {
+          alert('El documento no existe en el servidor todavía.');
+        }
+      }catch(err){
+        alert('Error leyendo del servidor: ' + (err.message||err));
+      }
+      btn.textContent = '🔄 Releer desde el servidor';
+    });
+  }
+  document.getElementById('diagText').textContent = `familia: ${familiaId} · modo: ${isReadOnly ? 'lectura' : 'editor'} · eventos: ${events.length} · bloques: ${careBlocks.length}`;
+}
+
+document.getElementById('toggleActivitiesBtn').textContent = showActivities ? '👁️ Ocultar actividades' : '🙈 Mostrar actividades';
+document.getElementById('moreOptionsBtn').addEventListener('click', ()=>{
+  const menu = document.getElementById('moreOptionsMenu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+});
+document.querySelectorAll('#moreOptionsMenu .menu-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.getElementById('moreOptionsMenu').style.display = 'none';
+  });
+});
+
+// Si el link no trae ?fam=... no hay con quién sincronizar: avisamos y no arrancamos a ciegas
+function iniciarApp(){
+  if(!familiaId){
+    document.body.innerHTML = `
+      <div style="max-width:420px;margin:60px auto;padding:24px;text-align:center;font-family:sans-serif;">
+        <h2>Falta el link completo</h2>
+        <p style="color:#8a8a8a;">Este link no tiene el identificador de familia (<code>?fam=...</code>). Pedile a quien te lo compartió el link completo de edición o de solo lectura.</p>
       </div>`;
-    c.appendChild(r);
-  });
-}
-function setBlk(i,o){tmpBlocks[i]=o;renderModalBlocks();updateModalTot()}
-function updateModalTot(){let a=0,v=0;tmpBlocks.forEach((b,i)=>{if(b==='a')a+=BLOCKS[i].h;else v+=BLOCKS[i].h});document.getElementById('dtA').textContent=a+'h';document.getElementById('dtV').textContent=v+'h'}
-function renderModalEvents(){
-  const c=document.getElementById('evListModal');c.innerHTML='';
-  tmpEvents.forEach((ev,i)=>{
-    const el=document.createElement('div');el.className='ev-item-modal';
-    el.innerHTML=`<span class="eip">${EV_ICONS[ev.type]||'📌'} ${ev.title}${ev.time?' '+ev.time:''}</span><button onclick="removeTmpEvent(${i})">×</button>`;
-    c.appendChild(el);
-  });
-}
-function addEventFromModal(){
-  const v=document.getElementById('evInp').value.trim();
-  if(!v)return;
-  tmpEvents.push({title:v,day:editDay,type:'otro',time:''});
-  document.getElementById('evInp').value='';
-  renderModalEvents();
-}
-function removeTmpEvent(i){tmpEvents.splice(i,1);renderModalEvents()}
-function saveDay(){
-  monthData[editDay]={blocks:[...tmpBlocks],note:document.getElementById('noteInp').value.trim()};
-  save(Y,M,monthData);
-  evData=evData.filter(e=>e.day!==editDay).concat(tmpEvents);
-  saveEv(Y,M,evData);
-  closeDayModal();render();
-}
-function closeDayModal(e){if(e&&e.target!==document.getElementById('dayOv'))return;document.getElementById('dayOv').classList.remove('open')}
-
-// EVENT MODAL
-function openEventModal(){document.getElementById('evOv').classList.add('open')}
-function closeEvModal(e){if(e&&e.target!==document.getElementById('evOv'))return;document.getElementById('evOv').classList.remove('open')}
-function saveEvent(){
-  const t=document.getElementById('evTitle').value.trim();
-  const d=parseInt(document.getElementById('evDay').value);
-  const time=document.getElementById('evTime').value;
-  const type=document.getElementById('evType').value;
-  if(!t||!d||d<1||d>daysInMonth())return;
-  evData.push({title:t,day:d,time,type});
-  saveEv(Y,M,evData);
-  document.getElementById('evTitle').value='';
-  document.getElementById('evDay').value='';
-  document.getElementById('evTime').value='';
-  document.getElementById('evOv').classList.remove('open');
-  renderEvents();renderCalendar();if(curTab==='semana')renderWeek();
-}
-
-// SHARE WHATSAPP
-function shareWhatsApp(){
-  const dim=daysInMonth();
-  let msg=`*Cuidados ${MONTHS[M]} ${Y}*\n\n`;
-  for(let d=1;d<=dim;d++){
-    const wd=getWD(d);const dd=getDayData(d);
-    const{a,v}=hrs(dd.blocks);const ow=owner(dd.blocks);
-    const evs=getDayEvents(d);
-    const who=ow==='abel'?'Abel':ow==='vicky'?'Vicky':'Mixto';
-    const hol=HOLIDAYS[dKey(Y,M,d)]?'🟡':'';
-    msg+=`${hol}*${d}/${M+1} ${DS[wd]}* — ${who} (A:${a}h V:${v}h)`;
-    if(dd.note)msg+=`\n  📝 ${dd.note}`;
-    evs.forEach(e=>msg+=`\n  ${EV_ICONS[e.type]||'📌'} ${e.title}${e.time?' '+e.time:''}`);
-    msg+='\n';
+    return;
   }
-  let tA=0,tV=0;
-  for(let d=1;d<=dim;d++){const{a,v}=hrs(getDayData(d).blocks);tA+=a;tV+=v}
-  msg+=`\n*Total mes:* Abel ${tA}h (${(tA/7.44).toFixed(1)}%) · Vicky ${tV}h (${(tV/7.44).toFixed(1)}%)`;
-  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
-}
-
-// EXPORT PDF
-function exportPDF(){
-  const dim=daysInMonth();
-  let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Cuidados ${MONTHS[M]} ${Y}</title>
-  <style>body{font-family:Arial,sans-serif;padding:20px;max-width:700px;margin:0 auto}
-  h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;font-weight:400;margin-bottom:20px}
-  table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px}
-  th{background:#f0f0f0;font-weight:600}.abel{background:#E8EFFE}.vicky{background:#FDEDF3}
-  .mixed{background:#EDE9FF}.holiday{background:#FEF3C7}
-  .foot{margin-top:16px;font-size:12px;color:#444}
-  @media print{body{padding:10px}}</style></head><body>
-  <h1>Cuidados — ${MONTHS[M]} ${Y}</h1><h2>Planilla de cuidados compartidos</h2>
-  <table><tr><th>Día</th><th>Fecha</th><th>Cuidado</th><th>Hs Abel</th><th>Hs Vicky</th><th>Nota</th></tr>`;
-  let tA=0,tV=0;
-  for(let d=1;d<=dim;d++){
-    const wd=getWD(d);const dd=getDayData(d);
-    const{a,v}=hrs(dd.blocks);const ow=owner(dd.blocks);
-    const isH=!!HOLIDAYS[dKey(Y,M,d)];
-    const cls=isH?'holiday':ow;
-    const who=isH?'🟡 Feriado':ow==='abel'?'Abel':ow==='vicky'?'Vicky':'Mixto';
-    const evs=getDayEvents(d).map(e=>`${EV_ICONS[e.type]} ${e.title}`).join(', ');
-    const note=[dd.note,evs].filter(Boolean).join(' | ');
-    tA+=a;tV+=v;
-    html+=`<tr class="${cls}"><td><b>${DAYS[wd].slice(0,3)}</b></td><td>${d}/${M+1}</td><td>${who}</td><td>${a}h</td><td>${v}h</td><td style="font-size:11px">${note}</td></tr>`;
+  if(!window.__firebase){
+    const errDetail = window.__firebaseError ? `<p style="color:#c0392b;font-size:.75rem;margin-top:16px;">Detalle técnico: ${escapeHtml(String(window.__firebaseError.message||window.__firebaseError))}</p>` : '';
+    document.body.innerHTML = `
+      <div style="max-width:420px;margin:60px auto;padding:24px;text-align:center;font-family:sans-serif;">
+        <h2>No se pudo conectar</h2>
+        <p style="color:#8a8a8a;">No se pudo cargar Firebase. Revisá tu conexión a internet y volvé a intentar.</p>
+        ${errDetail}
+      </div>`;
+    return;
   }
-  html+=`</table><div class="foot"><b>Total mes:</b> Abel ${tA}h (${(tA/7.44).toFixed(1)}%) · Vicky ${tV}h (${(tV/7.44).toFixed(1)}%)</div></body></html>`;
-  const w=window.open('','_blank');w.document.write(html);w.document.close();
-  setTimeout(()=>w.print(),400);
-}
 
-// NAV
-function changeMonth(dir){
-  M+=dir;if(M>11){M=0;Y++}if(M<0){M=11;Y--}
-  monthData=load(Y,M);evData=loadEv(Y,M);
-  curWeek=0;cancelCopy();
-  document.getElementById('mlabel').textContent=`${MONTHS[M]} ${Y}`;
-  render();
-}
-function setTab(t){
-  curTab=t;
-  ['mes','semana','eventos','opciones'].forEach(n=>{
-    document.getElementById('tab'+n.charAt(0).toUpperCase()+n.slice(1)).style.display=n===t?'':'none';
+  const { onSnapshot, setDoc, getDoc } = window.__firebase;
+  const wasUnlocked = localStorage.getItem(UNLOCK_KEY) === 'true';
+
+  // Antes de suscribirnos al listener en tiempo real, confirmamos con una
+  // lectura directa (no cacheada) si el documento realmente existe. Esto
+  // evita el bug de pisar datos reales: el primer evento de onSnapshot puede
+  // venir de la caché local (sin datos todavía) y reportar "no existe" aunque
+  // el documento sí tenga datos en el servidor - si actuáramos sobre eso,
+  // terminaríamos sobrescribiendo con arrays vacíos.
+  getDoc(getFamiliaDocRef()).then((initialSnap)=>{
+    if(!initialSnap.exists()){
+      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, updatedAt: Date.now() })
+        .catch(err=>console.error('Error inicializando familia:', err));
+    }
+  }).catch(err=>console.error('Error verificando existencia del documento:', err));
+
+  onSnapshot(getFamiliaDocRef(), (snap)=>{
+    if(suppressNextSnapshot){ suppressNextSnapshot = false; return; }
+
+    if(snap.exists()){
+      const data = snap.data();
+      events = data.events || [];
+      careBlocks = data.careBlocks || [];
+      templates = data.templates || templates;
+    }
+    // Si snap.exists() es false acá, no hacemos nada: la comprobación real
+    // (con getDoc, sin caché) ya se hizo arriba antes de suscribirnos.
+
+    // El modo editor depende únicamente de si este dispositivo ya ingresó
+    // el PIN maestro alguna vez (guardado en localStorage), no de nada en Firestore.
+    isReadOnly = !wasUnlocked;
+    document.body.classList.toggle('read-only-mode', isReadOnly);
+    refreshAll();
+  }, (err)=>{
+    console.error('Error de sincronización:', err);
   });
-  document.querySelectorAll('.tab').forEach((b,i)=>{
-    b.classList.toggle('active',['mes','semana','eventos','opciones'][i]===t);
-  });
-  render();
 }
 
-function render(){
-  updateSummary();
-  if(curTab==='mes')renderCalendar();
-  if(curTab==='semana')renderWeek();
-  if(curTab==='eventos')renderEvents();
-}
+// ---------- Desbloqueo por PIN ----------
+document.getElementById('unlockEditBtn').addEventListener('click', ()=>{
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').style.display = 'none';
+  document.getElementById('pinModal').classList.add('open');
+});
+document.getElementById('cancelPinBtn').addEventListener('click', ()=>{
+  document.getElementById('pinModal').classList.remove('open');
+});
+const MASTER_PIN = '0805'; // único PIN de edición de la app
 
-// init current week
-const td=new Date();
-if(td.getFullYear()===Y&&td.getMonth()===M){
-  getWeeks().forEach((w,i)=>{if(w.includes(td.getDate()))curWeek=i});
+document.getElementById('confirmPinBtn').addEventListener('click', ()=>{
+  const entered = document.getElementById('pinInput').value.trim();
+  if(entered === MASTER_PIN){
+    isReadOnly = false;
+    localStorage.setItem(UNLOCK_KEY, 'true');
+    document.body.classList.remove('read-only-mode');
+    document.getElementById('pinModal').classList.remove('open');
+    refreshAll();
+  } else {
+    document.getElementById('pinError').style.display = 'block';
+  }
+});
+
+// El script de Firebase es un módulo y carga en forma asíncrona, así que puede
+// no estar listo todavía en este punto. Esperamos un poco antes de rendirnos.
+let intentos = 0;
+function esperarFirebaseYArrancar(){
+  if(window.__firebase || window.__firebaseError || intentos >= 40){
+    iniciarApp();
+  } else {
+    intentos++;
+    setTimeout(esperarFirebaseYArrancar, 150);
+  }
 }
-render();
+esperarFirebaseYArrancar();
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
