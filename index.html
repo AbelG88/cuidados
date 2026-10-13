@@ -442,6 +442,27 @@
   .week-event-chip{font-size:.7rem;padding:2px 7px;border-radius:10px;background:#ede9e3;color:var(--ink);}
   .week-hours-row{font-size:.72rem;color:var(--muted);margin-top:3px;}
 
+  /* ---- Pendientes (pantalla aparte del calendario) ---- */
+  #todoView{display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow-y:auto;}
+  #todoView.open{display:block;}
+  .todo-header{position:sticky;top:0;background:var(--accent);color:#fff;display:flex;align-items:center;gap:10px;padding:12px 14px;z-index:2;}
+  .todo-header h1{margin:0;font-size:1.1rem;flex:1;}
+  .todo-header button{border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 12px;font-size:.85rem;font-weight:600;cursor:pointer;}
+  .todo-body{max-width:560px;margin:0 auto;padding:14px 14px 90px;}
+  .todo-item{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;}
+  .todo-check{width:22px;height:22px;margin-top:2px;flex-shrink:0;accent-color:var(--accent);cursor:pointer;}
+  .todo-main{flex:1;min-width:0;cursor:pointer;}
+  .todo-title{font-weight:600;font-size:.95rem;word-break:break-word;}
+  .todo-detail{font-size:.82rem;color:var(--muted);margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+  .todo-date{display:inline-block;font-size:.74rem;margin-top:5px;padding:2px 8px;border-radius:10px;background:#ede9e3;color:var(--ink);}
+  .todo-date.overdue{background:#fdecea;color:#c0392b;font-weight:600;}
+  .todo-date.today{background:#fff3e0;color:#b9651a;font-weight:600;}
+  .todo-empty{text-align:center;color:var(--muted);font-size:.9rem;padding:30px 10px;}
+  .todo-section-btn{width:100%;padding:11px;margin:14px 0 8px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-size:.85rem;cursor:pointer;color:var(--muted);}
+  .todo-item.archived .todo-title{text-decoration:line-through;color:var(--muted);}
+  body.read-only-mode .todo-edit{display:none !important;}
+  body.read-only-mode .todo-check{pointer-events:none;opacity:.5;}
+
   /* ---- Modo copia ---- */
   .copy-action-btn{
     padding:6px 12px;border-radius:8px;border:none;background:rgba(255,255,255,.25);
@@ -493,6 +514,7 @@
   <div class="toolbar" style="margin-top:-4px;">
     <button id="toggleActivitiesBtn">👁️ Ocultar actividades</button>
     <button id="manageTemplatesBtn">⚙️ Plantillas</button>
+    <button id="openTodosBtn">✅ Pendientes <span id="todoCountBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 7px;font-size:.72rem;margin-left:2px;"></span></button>
   </div>
   <div id="moreOptionsMenu" style="display:none;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:-4px 0 12px;overflow:hidden;">
     <button class="menu-item" id="exportPdfBtn">⬇️ Exportar PDF</button>
@@ -779,6 +801,35 @@
   </div>
 </div>
 
+<!-- Pantalla: Pendientes (separada del calendario) -->
+<div id="todoView">
+  <div class="todo-header">
+    <button id="todoBackBtn">‹ Volver</button>
+    <h1>✅ Pendientes</h1>
+    <button id="todoAddBtn" class="todo-edit">＋ Nueva</button>
+  </div>
+  <div class="todo-body">
+    <div id="todoList"></div>
+    <button class="todo-section-btn" id="todoToggleArchiveBtn"></button>
+    <div id="todoArchive" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Modal: Pendiente (crear / editar) -->
+<div class="modal-overlay" id="todoModal" style="z-index:40;">
+  <div class="modal">
+    <h2 id="todoModalTitle">Nuevo pendiente</h2>
+    <div class="field"><label>Título</label><input type="text" id="todoTitleInput" maxlength="120" placeholder="Ej: Pedir turno con la fono"></div>
+    <div class="field"><label>Detalle</label><textarea id="todoDetailInput" rows="3" placeholder="Opcional"></textarea></div>
+    <div class="field"><label>Fecha</label><input type="date" id="todoDateInput"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="todoDeleteBtn" style="display:none;">Borrar</button>
+      <button class="btn btn-secondary" id="todoCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="todoSaveBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: Ingresar PIN para desbloquear edición -->
 <div class="modal-overlay" id="pinModal">
   <div class="modal">
@@ -828,6 +879,7 @@ function firebaseReady(){ return !!familiaId && !!window.__firebase; }
 // ---------- Estado ----------
 let events = [];
 let careBlocks = [];
+let todos = []; // Pendientes: {id,title,detail,date,done,doneAt}
 let templates = [
   {id:'t1', title:'Colegio', start:'08:00', end:'12:00'},
   {id:'t2', title:'Fonoaudiología', start:'14:00', end:'15:00'},
@@ -861,7 +913,7 @@ async function persistAll(){
   const { setDoc } = window.__firebase;
   suppressNextSnapshot = true;
   try{
-    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, updatedAt: Date.now() });
+    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, todos, updatedAt: Date.now() });
     mostrarEstadoGuardado('✓ Guardado');
   }catch(err){
     console.error('Error guardando en Firebase:', err);
@@ -2281,7 +2333,8 @@ document.getElementById('exportProposalBtn').addEventListener('click', ()=>{
     generado: new Date().toISOString(),
     eventos: events,
     bloques: careBlocks,
-    plantillas: templates
+    plantillas: templates,
+    pendientes: todos
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2497,6 +2550,7 @@ function refreshAll(){
   renderTodayBanner();
   renderCalendar();
   renderDiagnostico();
+  renderTodos();
 }
 
 
@@ -2520,6 +2574,7 @@ function renderDiagnostico(){
           events = data.events || [];
           careBlocks = data.careBlocks || [];
           templates = data.templates || templates;
+          todos = data.todos || [];
           alert(`Leído directo del servidor:\n\neventos: ${events.length}\nbloques: ${careBlocks.length}\núltima actualización: ${data.updatedAt ? new Date(data.updatedAt).toLocaleString('es-AR') : 'desconocida'}`);
           refreshAll();
         } else {
@@ -2577,7 +2632,7 @@ function iniciarApp(){
   // terminaríamos sobrescribiendo con arrays vacíos.
   getDoc(getFamiliaDocRef()).then((initialSnap)=>{
     if(!initialSnap.exists()){
-      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, updatedAt: Date.now() })
+      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, todos:[], updatedAt: Date.now() })
         .catch(err=>console.error('Error inicializando familia:', err));
     }
   }).catch(err=>console.error('Error verificando existencia del documento:', err));
@@ -2590,6 +2645,7 @@ function iniciarApp(){
       events = data.events || [];
       careBlocks = data.careBlocks || [];
       templates = data.templates || templates;
+      todos = data.todos || [];
     }
     // Si snap.exists() es false acá, no hacemos nada: la comprobación real
     // (con getDoc, sin caché) ya se hizo arriba antes de suscribirnos.
@@ -2603,6 +2659,136 @@ function iniciarApp(){
     console.error('Error de sincronización:', err);
   });
 }
+
+// ---------- Pendientes (to-do) ----------
+let editingTodoId = null;
+let showTodoArchive = false;
+
+function todoDateLabel(ds){
+  const today = fmtDateStr(new Date());
+  const [y,m,d] = ds.split('-').map(Number);
+  const txt = new Date(y, m-1, d).toLocaleDateString('es-AR',{weekday:'short', day:'numeric', month:'short'});
+  if(ds < today) return {cls:'overdue', txt:'⚠️ ' + txt};
+  if(ds === today) return {cls:'today', txt:'Hoy'};
+  return {cls:'', txt:'📅 ' + txt};
+}
+
+function todoItemHtml(t, archived){
+  let dateHtml = '';
+  if(t.date){
+    const l = archived ? {cls:'', txt:'📅 ' + t.date.split('-').reverse().join('/')} : todoDateLabel(t.date);
+    dateHtml = `<span class="todo-date ${l.cls}">${escapeHtml(l.txt)}</span>`;
+  }
+  return `<div class="todo-item ${archived?'archived':''}" data-id="${escapeHtml(t.id)}">
+    <input type="checkbox" class="todo-check" ${t.done?'checked':''} aria-label="Marcar como hecho">
+    <div class="todo-main">
+      <div class="todo-title">${escapeHtml(t.title)}</div>
+      ${t.detail ? `<div class="todo-detail">${escapeHtml(t.detail)}</div>` : ''}
+      ${dateHtml}
+    </div>
+  </div>`;
+}
+
+function renderTodos(){
+  const listEl = document.getElementById('todoList');
+  if(!listEl) return;
+  const pending = todos.filter(t=>!t.done).sort((a,b)=>{
+    if(a.date && b.date) return a.date.localeCompare(b.date);
+    if(a.date) return -1;
+    if(b.date) return 1;
+    return (a.createdAt||0) - (b.createdAt||0);
+  });
+  const archived = todos.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
+
+  listEl.innerHTML = pending.length
+    ? pending.map(t=>todoItemHtml(t,false)).join('')
+    : '<div class="todo-empty">🎉 No hay pendientes.</div>';
+  document.getElementById('todoArchive').innerHTML = archived.length
+    ? archived.map(t=>todoItemHtml(t,true)).join('')
+    : '<div class="todo-empty">Todavía no hay tareas archivadas.</div>';
+  document.getElementById('todoArchive').style.display = showTodoArchive ? 'block' : 'none';
+  document.getElementById('todoToggleArchiveBtn').textContent =
+    (showTodoArchive ? '▾ Ocultar archivadas' : '▸ Ver archivadas') + ` (${archived.length})`;
+
+  const badge = document.getElementById('todoCountBadge');
+  if(badge){
+    badge.textContent = pending.length;
+    badge.style.display = pending.length ? 'inline-block' : 'none';
+  }
+}
+
+function openTodoModal(id){
+  if(isReadOnly){ alert('Activá el modo edición (PIN) para modificar pendientes.'); return; }
+  editingTodoId = id || null;
+  const t = id ? todos.find(x=>x.id===id) : null;
+  document.getElementById('todoModalTitle').textContent = t ? 'Editar pendiente' : 'Nuevo pendiente';
+  document.getElementById('todoTitleInput').value = t ? t.title : '';
+  document.getElementById('todoDetailInput').value = t ? (t.detail||'') : '';
+  document.getElementById('todoDateInput').value = t ? (t.date||'') : '';
+  document.getElementById('todoDeleteBtn').style.display = t ? 'block' : 'none';
+  document.getElementById('todoModal').classList.add('open');
+  setTimeout(()=>document.getElementById('todoTitleInput').focus(), 50);
+}
+function closeTodoModal(){ document.getElementById('todoModal').classList.remove('open'); }
+
+document.getElementById('openTodosBtn').addEventListener('click', ()=>{
+  renderTodos();
+  document.getElementById('todoView').classList.add('open');
+  document.getElementById('todoView').scrollTop = 0;
+});
+document.getElementById('todoBackBtn').addEventListener('click', ()=>{
+  document.getElementById('todoView').classList.remove('open');
+});
+document.getElementById('todoAddBtn').addEventListener('click', ()=>openTodoModal(null));
+document.getElementById('todoCancelBtn').addEventListener('click', closeTodoModal);
+document.getElementById('todoToggleArchiveBtn').addEventListener('click', ()=>{
+  showTodoArchive = !showTodoArchive;
+  renderTodos();
+});
+
+document.getElementById('todoSaveBtn').addEventListener('click', async ()=>{
+  const title = document.getElementById('todoTitleInput').value.trim();
+  if(!title){ alert('Poné un título.'); return; }
+  const detail = document.getElementById('todoDetailInput').value.trim();
+  const date = document.getElementById('todoDateInput').value || '';
+  if(editingTodoId){
+    const t = todos.find(x=>x.id===editingTodoId);
+    if(t){ t.title = title; t.detail = detail; t.date = date; }
+  } else {
+    todos.push({ id:'td'+Date.now()+Math.random().toString(36).slice(2,6), title, detail, date, done:false, createdAt:Date.now() });
+  }
+  closeTodoModal();
+  renderTodos();
+  await persistAll();
+});
+
+document.getElementById('todoDeleteBtn').addEventListener('click', async ()=>{
+  if(!editingTodoId) return;
+  if(!confirm('¿Borrar este pendiente definitivamente?')) return;
+  todos = todos.filter(x=>x.id!==editingTodoId);
+  closeTodoModal();
+  renderTodos();
+  await persistAll();
+});
+
+// Tocar el checkbox archiva (o recupera); tocar el texto abre la edición
+['todoList','todoArchive'].forEach(listId=>{
+  document.getElementById(listId).addEventListener('click', async (e)=>{
+    const item = e.target.closest('.todo-item');
+    if(!item) return;
+    const t = todos.find(x=>x.id===item.dataset.id);
+    if(!t) return;
+    if(e.target.classList.contains('todo-check')){
+      if(isReadOnly){ e.preventDefault(); alert('Activá el modo edición (PIN) para modificar pendientes.'); return; }
+      t.done = e.target.checked;
+      t.doneAt = t.done ? Date.now() : null;
+      renderTodos();
+      await persistAll();
+    } else if(e.target.closest('.todo-main')){
+      openTodoModal(t.id);
+    }
+  });
+});
 
 // ---------- Desbloqueo por PIN ----------
 document.getElementById('unlockEditBtn').addEventListener('click', ()=>{
