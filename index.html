@@ -463,6 +463,31 @@
   body.read-only-mode .todo-edit{display:none !important;}
   body.read-only-mode .todo-check{pointer-events:none;opacity:.5;}
 
+  /* ---- Panel principal + Enlaces ---- */
+  #homeView,#linksView{display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow-y:auto;}
+  #homeView.open,#linksView.open{display:block;}
+  .home-top{padding:22px 16px 6px;text-align:center;}
+  .home-top h1{margin:0;font-size:1.4rem;}
+  .home-top img{width:30px;height:30px;vertical-align:-7px;border-radius:7px;margin-right:6px;}
+  .home-body{max-width:560px;margin:0 auto;padding:10px 14px 40px;}
+  .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;}
+  .home-tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 12px;text-align:center;cursor:pointer;font-family:inherit;color:var(--ink);}
+  .home-tile:active{background:#faf8f5;}
+  .home-tile .ico{font-size:2rem;display:block;margin-bottom:6px;}
+  .home-tile .nm{font-weight:700;font-size:1rem;display:block;}
+  .home-tile .sub{font-size:.76rem;color:var(--muted);display:block;margin-top:3px;}
+  .panel-btn{position:absolute;left:12px;top:18px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 10px;font-size:.8rem;cursor:pointer;}
+  .links-notice{font-size:.8rem;color:#856404;background:#fffbe6;border:1px solid #f0d98a;border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.4;}
+  .link-cat{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);margin:16px 2px 6px;}
+  .link-item{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;}
+  .link-main{flex:1;min-width:0;padding:12px;text-decoration:none;color:var(--ink);}
+  .link-main:active{background:#faf8f5;}
+  .link-title{font-weight:600;font-size:.95rem;word-break:break-word;}
+  .link-note{font-size:.8rem;color:var(--muted);margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+  .link-host{font-size:.72rem;color:var(--muted);margin-top:4px;}
+  .link-edit{border:none;border-left:1px solid var(--line);background:none;padding:0 14px;font-size:1rem;cursor:pointer;color:var(--muted);}
+  body.read-only-mode .link-edit{display:none !important;}
+
   /* ---- Modo copia ---- */
   .copy-action-btn{
     padding:6px 12px;border-radius:8px;border:none;background:rgba(255,255,255,.25);
@@ -476,6 +501,7 @@
 <body>
 
 <header>
+  <button class="panel-btn" id="openHomeBtn">☰ Panel</button>
   <h1><img src="icons/icon-192.png?v=3" alt="" style="width:28px;height:28px;vertical-align:-6px;border-radius:6px;margin-right:6px;"> Dante</h1>
   <div class="month-nav">
     <button id="prevMonth">‹</button>
@@ -514,7 +540,6 @@
   <div class="toolbar" style="margin-top:-4px;">
     <button id="toggleActivitiesBtn">👁️ Ocultar actividades</button>
     <button id="manageTemplatesBtn">⚙️ Plantillas</button>
-    <button id="openTodosBtn">✅ Pendientes <span id="todoCountBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:0 7px;font-size:.72rem;margin-left:2px;"></span></button>
   </div>
   <div id="moreOptionsMenu" style="display:none;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:-4px 0 12px;overflow:hidden;">
     <button class="menu-item" id="exportPdfBtn">⬇️ Exportar PDF</button>
@@ -801,6 +826,49 @@
   </div>
 </div>
 
+<!-- Pantalla: Panel principal -->
+<div id="homeView" class="open">
+  <div class="home-top"><h1><img src="icons/icon-192.png?v=3" alt=""> Dante</h1></div>
+  <div class="home-body">
+    <div id="homeToday" style="display:none;"></div>
+    <div class="home-grid">
+      <button class="home-tile" id="tileCalendar"><span class="ico">📅</span><span class="nm">Calendario</span><span class="sub">Cuidados y actividades</span></button>
+      <button class="home-tile" id="tileTodos"><span class="ico">✅</span><span class="nm">Pendientes</span><span class="sub" id="homeTodoCount">—</span></button>
+      <button class="home-tile" id="tileDocs"><span class="ico">📄</span><span class="nm">Documentos</span><span class="sub" id="homeDocsCount">—</span></button>
+      <button class="home-tile" id="tileClinica"><span class="ico">🩺</span><span class="nm">Historia clínica</span><span class="sub" id="homeClinicaCount">—</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Pantalla: Enlaces (Documentos / Historia clínica) -->
+<div id="linksView">
+  <div class="todo-header">
+    <button id="linksBackBtn">‹ Volver</button>
+    <h1 id="linksTitle"></h1>
+    <button id="linksAddBtn" class="todo-edit">＋ Nuevo</button>
+  </div>
+  <div class="todo-body">
+    <div id="linksNotice" class="links-notice" style="display:none;"></div>
+    <div id="linksList"></div>
+  </div>
+</div>
+
+<!-- Modal: Enlace (crear / editar) -->
+<div class="modal-overlay" id="linkModal" style="z-index:40;">
+  <div class="modal">
+    <h2 id="linkModalTitle">Nuevo enlace</h2>
+    <div class="field"><label>Título</label><input type="text" id="linkTitleInput" maxlength="120" placeholder="Ej: Certificado de discapacidad"></div>
+    <div class="field"><label>Enlace</label><input type="url" id="linkUrlInput" inputmode="url" placeholder="https://..."></div>
+    <div class="field"><label>Categoría</label><input type="text" id="linkCatInput" maxlength="40" list="linkCatList" placeholder="Ej: Colegio, Obra social, Estudios"><datalist id="linkCatList"></datalist></div>
+    <div class="field"><label>Nota</label><textarea id="linkNoteInput" rows="2" placeholder="Opcional"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="linkDeleteBtn" style="display:none;">Borrar</button>
+      <button class="btn btn-secondary" id="linkCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="linkSaveBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Pantalla: Pendientes (separada del calendario) -->
 <div id="todoView">
   <div class="todo-header">
@@ -880,6 +948,7 @@ function firebaseReady(){ return !!familiaId && !!window.__firebase; }
 let events = [];
 let careBlocks = [];
 let todos = []; // Pendientes: {id,title,detail,date,done,doneAt}
+let links = []; // Enlaces: {id,section('docs'|'clinica'),title,url,category,note,createdAt}
 let templates = [
   {id:'t1', title:'Colegio', start:'08:00', end:'12:00'},
   {id:'t2', title:'Fonoaudiología', start:'14:00', end:'15:00'},
@@ -913,7 +982,7 @@ async function persistAll(){
   const { setDoc } = window.__firebase;
   suppressNextSnapshot = true;
   try{
-    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, todos, updatedAt: Date.now() });
+    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, todos, links, updatedAt: Date.now() });
     mostrarEstadoGuardado('✓ Guardado');
   }catch(err){
     console.error('Error guardando en Firebase:', err);
@@ -2334,7 +2403,8 @@ document.getElementById('exportProposalBtn').addEventListener('click', ()=>{
     eventos: events,
     bloques: careBlocks,
     plantillas: templates,
-    pendientes: todos
+    pendientes: todos,
+    enlaces: links
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2551,6 +2621,8 @@ function refreshAll(){
   renderCalendar();
   renderDiagnostico();
   renderTodos();
+  renderLinks();
+  renderHome();
 }
 
 
@@ -2575,6 +2647,7 @@ function renderDiagnostico(){
           careBlocks = data.careBlocks || [];
           templates = data.templates || templates;
           todos = data.todos || [];
+          links = data.links || [];
           alert(`Leído directo del servidor:\n\neventos: ${events.length}\nbloques: ${careBlocks.length}\núltima actualización: ${data.updatedAt ? new Date(data.updatedAt).toLocaleString('es-AR') : 'desconocida'}`);
           refreshAll();
         } else {
@@ -2632,7 +2705,7 @@ function iniciarApp(){
   // terminaríamos sobrescribiendo con arrays vacíos.
   getDoc(getFamiliaDocRef()).then((initialSnap)=>{
     if(!initialSnap.exists()){
-      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, todos:[], updatedAt: Date.now() })
+      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, todos:[], links:[], updatedAt: Date.now() })
         .catch(err=>console.error('Error inicializando familia:', err));
     }
   }).catch(err=>console.error('Error verificando existencia del documento:', err));
@@ -2646,6 +2719,7 @@ function iniciarApp(){
       careBlocks = data.careBlocks || [];
       templates = data.templates || templates;
       todos = data.todos || [];
+      links = data.links || [];
     }
     // Si snap.exists() es false acá, no hacemos nada: la comprobación real
     // (con getDoc, sin caché) ya se hizo arriba antes de suscribirnos.
@@ -2710,11 +2784,8 @@ function renderTodos(){
   document.getElementById('todoToggleArchiveBtn').textContent =
     (showTodoArchive ? '▾ Ocultar archivadas' : '▸ Ver archivadas') + ` (${archived.length})`;
 
-  const badge = document.getElementById('todoCountBadge');
-  if(badge){
-    badge.textContent = pending.length;
-    badge.style.display = pending.length ? 'inline-block' : 'none';
-  }
+  const homeCount = document.getElementById('homeTodoCount');
+  if(homeCount) homeCount.textContent = pending.length ? `${pending.length} sin hacer` : 'Todo al día';
 }
 
 function openTodoModal(id){
@@ -2731,11 +2802,11 @@ function openTodoModal(id){
 }
 function closeTodoModal(){ document.getElementById('todoModal').classList.remove('open'); }
 
-document.getElementById('openTodosBtn').addEventListener('click', ()=>{
+function openTodoView(){
   renderTodos();
   document.getElementById('todoView').classList.add('open');
   document.getElementById('todoView').scrollTop = 0;
-});
+}
 document.getElementById('todoBackBtn').addEventListener('click', ()=>{
   document.getElementById('todoView').classList.remove('open');
 });
@@ -2788,6 +2859,140 @@ document.getElementById('todoDeleteBtn').addEventListener('click', async ()=>{
       openTodoModal(t.id);
     }
   });
+});
+
+// ---------- Panel principal ----------
+function renderHome(){
+  const banner = document.getElementById('todayBanner');
+  const t = document.getElementById('homeToday');
+  if(!t || !banner) return;
+  if(banner.style.display === 'none' || !banner.innerHTML){ t.style.display = 'none'; }
+  else { t.innerHTML = banner.innerHTML; t.style.cssText = banner.style.cssText; t.style.display = 'block'; t.style.marginBottom = '14px'; }
+  const n = sec => links.filter(l=>l.section===sec).length;
+  const d = document.getElementById('homeDocsCount'), c = document.getElementById('homeClinicaCount');
+  if(d) d.textContent = n('docs') ? `${n('docs')} enlace${n('docs')>1?'s':''}` : 'Sin enlaces';
+  if(c) c.textContent = n('clinica') ? `${n('clinica')} enlace${n('clinica')>1?'s':''}` : 'Sin enlaces';
+}
+const homeEl = document.getElementById('homeView');
+document.getElementById('openHomeBtn').addEventListener('click', ()=>{ renderHome(); homeEl.classList.add('open'); homeEl.scrollTop = 0; });
+document.getElementById('tileCalendar').addEventListener('click', ()=>{ homeEl.classList.remove('open'); window.scrollTo(0,0); });
+document.getElementById('tileTodos').addEventListener('click', openTodoView);
+document.getElementById('tileDocs').addEventListener('click', ()=>openLinksView('docs'));
+document.getElementById('tileClinica').addEventListener('click', ()=>openLinksView('clinica'));
+
+// ---------- Enlaces (Documentos / Historia clínica) ----------
+const LINK_SECTIONS = {
+  docs:    { title:'📄 Documentos', notice:'' },
+  clinica: { title:'🩺 Historia clínica', notice:'Guardá acá solo enlaces a los archivos (Drive, portal de la obra social, etc.), no datos clínicos. Cualquiera que tenga el link de la app ve esta lista, así que los archivos tienen que estar con acceso restringido, no como "cualquiera con el enlace".' }
+};
+let currentLinkSection = 'docs';
+let editingLinkId = null;
+
+function attrEsc(str){ return escapeHtml(str).replace(/"/g,'&quot;'); }
+function normalizeUrl(raw){
+  let u = (raw||'').trim();
+  if(!u) return null;
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u = 'https://' + u;
+  try{
+    const parsed = new URL(u);
+    return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? parsed.href : null;
+  }catch(e){ return null; }
+}
+function linkHost(u){ try{ return new URL(u).hostname.replace(/^www\./,''); }catch(e){ return ''; } }
+
+function renderLinks(){
+  const listEl = document.getElementById('linksList');
+  if(!listEl) return;
+  const sec = LINK_SECTIONS[currentLinkSection];
+  document.getElementById('linksTitle').textContent = sec.title;
+  const notice = document.getElementById('linksNotice');
+  notice.textContent = sec.notice;
+  notice.style.display = sec.notice ? 'block' : 'none';
+
+  const items = links.filter(l=>l.section===currentLinkSection);
+  if(!items.length){
+    listEl.innerHTML = '<div class="todo-empty">Todavía no hay enlaces. Tocá “＋ Nuevo” para agregar el primero.</div>';
+  } else {
+    const groups = {};
+    items.forEach(l=>{ const k = (l.category||'').trim() || 'Sin categoría'; (groups[k] = groups[k] || []).push(l); });
+    const keys = Object.keys(groups).sort((a,b)=>{
+      if(a==='Sin categoría') return 1;
+      if(b==='Sin categoría') return -1;
+      return a.localeCompare(b,'es');
+    });
+    listEl.innerHTML = keys.map(k=>{
+      const rows = groups[k].sort((a,b)=>a.title.localeCompare(b.title,'es')).map(l=>`
+        <div class="link-item" data-id="${attrEsc(l.id)}">
+          <a class="link-main" href="${attrEsc(l.url)}" target="_blank" rel="noopener noreferrer">
+            <div class="link-title">${escapeHtml(l.title)}</div>
+            ${l.note ? `<div class="link-note">${escapeHtml(l.note)}</div>` : ''}
+            <div class="link-host">🔗 ${escapeHtml(linkHost(l.url))}</div>
+          </a>
+          <button class="link-edit" aria-label="Editar">✎</button>
+        </div>`).join('');
+      return `<div class="link-cat">${escapeHtml(k)}</div>${rows}`;
+    }).join('');
+  }
+  const cats = [...new Set(links.map(l=>(l.category||'').trim()).filter(Boolean))];
+  document.getElementById('linkCatList').innerHTML = cats.map(c=>`<option value="${attrEsc(c)}">`).join('');
+}
+
+function openLinksView(section){
+  currentLinkSection = section;
+  renderLinks();
+  const v = document.getElementById('linksView');
+  v.classList.add('open');
+  v.scrollTop = 0;
+}
+function openLinkModal(id){
+  if(isReadOnly){ alert('Activá el modo edición (PIN) para modificar enlaces.'); return; }
+  editingLinkId = id || null;
+  const l = id ? links.find(x=>x.id===id) : null;
+  document.getElementById('linkModalTitle').textContent = l ? 'Editar enlace' : 'Nuevo enlace';
+  document.getElementById('linkTitleInput').value = l ? l.title : '';
+  document.getElementById('linkUrlInput').value = l ? l.url : '';
+  document.getElementById('linkCatInput').value = l ? (l.category||'') : '';
+  document.getElementById('linkNoteInput').value = l ? (l.note||'') : '';
+  document.getElementById('linkDeleteBtn').style.display = l ? 'block' : 'none';
+  document.getElementById('linkModal').classList.add('open');
+  setTimeout(()=>document.getElementById('linkTitleInput').focus(), 50);
+}
+function closeLinkModal(){ document.getElementById('linkModal').classList.remove('open'); }
+
+document.getElementById('linksBackBtn').addEventListener('click', ()=>{
+  document.getElementById('linksView').classList.remove('open');
+});
+document.getElementById('linksAddBtn').addEventListener('click', ()=>openLinkModal(null));
+document.getElementById('linkCancelBtn').addEventListener('click', closeLinkModal);
+document.getElementById('linksList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.link-edit');
+  if(!btn) return;
+  openLinkModal(btn.closest('.link-item').dataset.id);
+});
+document.getElementById('linkSaveBtn').addEventListener('click', async ()=>{
+  const title = document.getElementById('linkTitleInput').value.trim();
+  const url = normalizeUrl(document.getElementById('linkUrlInput').value);
+  if(!title){ alert('Poné un título.'); return; }
+  if(!url){ alert('El enlace no es válido. Tiene que ser una dirección web (https://...).'); return; }
+  const category = document.getElementById('linkCatInput').value.trim();
+  const note = document.getElementById('linkNoteInput').value.trim();
+  if(editingLinkId){
+    const l = links.find(x=>x.id===editingLinkId);
+    if(l){ l.title = title; l.url = url; l.category = category; l.note = note; }
+  } else {
+    links.push({ id:'lk'+Date.now()+Math.random().toString(36).slice(2,6), section:currentLinkSection, title, url, category, note, createdAt:Date.now() });
+  }
+  closeLinkModal();
+  renderLinks(); renderHome();
+  await persistAll();
+});
+document.getElementById('linkDeleteBtn').addEventListener('click', async ()=>{
+  if(!editingLinkId) return;
+  if(!confirm('¿Borrar este enlace? (El archivo original no se toca.)')) return;
+  links = links.filter(x=>x.id!==editingLinkId);
+  closeLinkModal();
+  renderLinks(); renderHome();
+  await persistAll();
 });
 
 // ---------- Desbloqueo por PIN ----------
