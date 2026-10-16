@@ -1,9 +1,9 @@
-const CACHE_NAME = 'cuidados-v5';
+const CACHE_NAME = 'cuidados-v6';
 const ASSETS = [
   './index.html',
   './manifest.json',
-  './icons/icon-192.png?v=3',
-  './icons/icon-512.png?v=3'
+  './icons/icon-192.png?v=4',
+  './icons/icon-512.png?v=4'
 ];
 
 self.addEventListener('install', (event) => {
