@@ -469,6 +469,9 @@
   #homeView.open,#linksView.open,#panalesView.open{display:block;}
   .home-top{padding:22px 16px 6px;text-align:center;}
   .home-top h1{margin:0;font-size:1.4rem;}
+  .home-lock{display:none;text-align:center;font-size:.72rem;color:var(--muted);background:#f0f0f0;padding:6px;border-radius:8px;margin-bottom:12px;}
+  body.read-only-mode .home-lock{display:block;}
+  .home-lock button{margin-left:8px;border:1px solid var(--muted);background:#fff;border-radius:6px;padding:3px 10px;font-size:.72rem;cursor:pointer;}
   .home-top img{width:30px;height:30px;vertical-align:-7px;border-radius:7px;margin-right:6px;}
   .home-body{max-width:560px;margin:0 auto;padding:10px 14px 40px;}
   .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px;}
@@ -831,6 +834,7 @@
 <div id="homeView" class="open">
   <div class="home-top"><h1><img src="icons/icon-192.png?v=4" alt=""> Dante</h1></div>
   <div class="home-body">
+    <div class="home-lock">👀 Modo solo lectura <button id="homeUnlockBtn">🔒 Editar</button></div>
     <div id="homeToday" style="display:none;"></div>
     <div class="home-grid">
       <button class="home-tile" id="tileCalendar"><span class="ico">📅</span><span class="nm">Calendario</span><span class="sub">Cuidados y actividades</span></button>
@@ -929,7 +933,7 @@
 </div>
 
 <!-- Modal: Ingresar PIN para desbloquear edición -->
-<div class="modal-overlay" id="pinModal">
+<div class="modal-overlay" id="pinModal" style="z-index:50;">
   <div class="modal">
     <h2>Ingresar PIN de edición</h2>
     <p style="font-size:.85rem;color:var(--muted);text-align:center;margin-top:-6px;">Pedile el PIN a quien administra el calendario.</p>
@@ -3050,7 +3054,9 @@ function renderPanales(){
   if(!listEl) return;
   renderPanalesCount();
   if(!panales.length){
-    listEl.innerHTML = '<div class="todo-empty">Todavía no hay registros. Tocá “＋ Registrar” para anotar el primero.</div>';
+    listEl.innerHTML = isReadOnly
+      ? '<div class="todo-empty">Todavía no hay registros. Para anotar el primero, volvé al panel y tocá “🔒 Editar” para ingresar el PIN.</div>'
+      : '<div class="todo-empty">Todavía no hay registros. Tocá “＋ Registrar” para anotar el primero.</div>';
     return;
   }
   const groups = {};
@@ -3128,11 +3134,13 @@ document.getElementById('panalDeleteBtn').addEventListener('click', async ()=>{
 });
 
 // ---------- Desbloqueo por PIN ----------
-document.getElementById('unlockEditBtn').addEventListener('click', ()=>{
+function openPinModal(){
   document.getElementById('pinInput').value = '';
   document.getElementById('pinError').style.display = 'none';
   document.getElementById('pinModal').classList.add('open');
-});
+}
+document.getElementById('unlockEditBtn').addEventListener('click', openPinModal);
+document.getElementById('homeUnlockBtn').addEventListener('click', openPinModal);
 document.getElementById('cancelPinBtn').addEventListener('click', ()=>{
   document.getElementById('pinModal').classList.remove('open');
 });
