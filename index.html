@@ -159,6 +159,7 @@
   #todayBanner b,#homeToday b{display:block;font-size:.72rem;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
 
   /* Modo solo-lectura: ocultar todo lo que permite modificar datos */
+  body.read-only-mode #panalesAddBtn{display:none !important;}
   body.read-only-mode .fab,
   body.read-only-mode #addFromDayBtn,
   body.read-only-mode #addCareFromDayBtn,
@@ -464,8 +465,8 @@
   body.read-only-mode .todo-check{pointer-events:none;opacity:.5;}
 
   /* ---- Panel principal + Enlaces ---- */
-  #homeView,#linksView{display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow-y:auto;}
-  #homeView.open,#linksView.open{display:block;}
+  #homeView,#linksView,#panalesView{display:none;position:fixed;inset:0;background:var(--bg);z-index:30;overflow-y:auto;}
+  #homeView.open,#linksView.open,#panalesView.open{display:block;}
   .home-top{padding:22px 16px 6px;text-align:center;}
   .home-top h1{margin:0;font-size:1.4rem;}
   .home-top img{width:30px;height:30px;vertical-align:-7px;border-radius:7px;margin-right:6px;}
@@ -834,6 +835,7 @@
     <div class="home-grid">
       <button class="home-tile" id="tileCalendar"><span class="ico">📅</span><span class="nm">Calendario</span><span class="sub">Cuidados y actividades</span></button>
       <button class="home-tile" id="tileTodos"><span class="ico">✅</span><span class="nm">Pendientes</span><span class="sub" id="homeTodoCount">—</span></button>
+      <button class="home-tile" id="tilePanales"><span class="ico">🧷</span><span class="nm">Pañales</span><span class="sub" id="homePanalesCount">—</span></button>
       <button class="home-tile" id="tileDocs"><span class="ico">📄</span><span class="nm">Documentos</span><span class="sub" id="homeDocsCount">—</span></button>
       <button class="home-tile" id="tileClinica"><span class="ico">🩺</span><span class="nm">Historia clínica</span><span class="sub" id="homeClinicaCount">—</span></button>
     </div>
@@ -850,6 +852,34 @@
   <div class="todo-body">
     <div id="linksNotice" class="links-notice" style="display:none;"></div>
     <div id="linksList"></div>
+  </div>
+</div>
+
+<!-- Vista: Pañales -->
+<div id="panalesView">
+  <div class="todo-header">
+    <button id="panalesBackBtn">‹ Volver</button>
+    <h1>🧷 Pañales</h1>
+    <button id="panalesAddBtn" class="todo-edit">＋ Registrar</button>
+  </div>
+  <div class="todo-body">
+    <div id="panalesList"></div>
+  </div>
+</div>
+
+<!-- Modal: Registro de pañal -->
+<div class="modal-overlay" id="panalModal" style="z-index:40;">
+  <div class="modal">
+    <h2 id="panalModalTitle">Nuevo registro</h2>
+    <div class="field"><label>Fecha y hora</label><input type="datetime-local" id="panalTimeInput"></div>
+    <div class="field"><label>Tipo</label><select id="panalTipoInput"><option value="pis">💧 Pis</option><option value="caca">💩 Caca</option><option value="ambos">💧💩 Pis y caca</option></select></div>
+    <div class="field"><label>Registrado por</label><input type="text" id="panalWhoInput" maxlength="40" placeholder="Ej: Abel, Vicky"></div>
+    <div class="field"><label>Nota</label><textarea id="panalNoteInput" rows="2" placeholder="Opcional"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="panalDeleteBtn" style="display:none;">Borrar</button>
+      <button class="btn btn-secondary" id="panalCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="panalSaveBtn">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -948,6 +978,7 @@ function firebaseReady(){ return !!familiaId && !!window.__firebase; }
 let events = [];
 let careBlocks = [];
 let todos = []; // Pendientes: {id,title,detail,date,done,doneAt}
+let panales = []; // Pañales: {id,timestamp,tipo:'pis'|'caca'|'ambos',notas,cargadoPor}
 let links = []; // Enlaces: {id,section('docs'|'clinica'),title,url,category,note,createdAt}
 let templates = [
   {id:'t1', title:'Colegio', start:'08:00', end:'12:00'},
@@ -982,7 +1013,7 @@ async function persistAll(){
   const { setDoc } = window.__firebase;
   suppressNextSnapshot = true;
   try{
-    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, todos, links, updatedAt: Date.now() });
+    await setDoc(getFamiliaDocRef(), { events, careBlocks, templates, todos, links, panales, updatedAt: Date.now() });
     mostrarEstadoGuardado('✓ Guardado');
   }catch(err){
     console.error('Error guardando en Firebase:', err);
@@ -2622,6 +2653,7 @@ function refreshAll(){
   renderDiagnostico();
   renderTodos();
   renderLinks();
+  renderPanales();
   renderHome();
 }
 
@@ -2648,6 +2680,7 @@ function renderDiagnostico(){
           templates = data.templates || templates;
           todos = data.todos || [];
           links = data.links || [];
+          panales = data.panales || [];
           alert(`Leído directo del servidor:\n\neventos: ${events.length}\nbloques: ${careBlocks.length}\núltima actualización: ${data.updatedAt ? new Date(data.updatedAt).toLocaleString('es-AR') : 'desconocida'}`);
           refreshAll();
         } else {
@@ -2705,7 +2738,7 @@ function iniciarApp(){
   // terminaríamos sobrescribiendo con arrays vacíos.
   getDoc(getFamiliaDocRef()).then((initialSnap)=>{
     if(!initialSnap.exists()){
-      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, todos:[], links:[], updatedAt: Date.now() })
+      setDoc(getFamiliaDocRef(), { events:[], careBlocks:[], templates, todos:[], links:[], panales:[], updatedAt: Date.now() })
         .catch(err=>console.error('Error inicializando familia:', err));
     }
   }).catch(err=>console.error('Error verificando existencia del documento:', err));
@@ -2720,6 +2753,7 @@ function iniciarApp(){
       templates = data.templates || templates;
       todos = data.todos || [];
       links = data.links || [];
+      panales = data.panales || [];
     }
     // Si snap.exists() es false acá, no hacemos nada: la comprobación real
     // (con getDoc, sin caché) ya se hizo arriba antes de suscribirnos.
@@ -2868,6 +2902,7 @@ function renderHome(){
   if(!t || !banner) return;
   if(banner.style.display === 'none' || !banner.innerHTML){ t.style.display = 'none'; }
   else { t.innerHTML = banner.innerHTML; t.style.cssText = banner.style.cssText; t.style.display = 'block'; t.style.marginBottom = '14px'; }
+  renderPanalesCount();
   const n = sec => links.filter(l=>l.section===sec).length;
   const d = document.getElementById('homeDocsCount'), c = document.getElementById('homeClinicaCount');
   if(d) d.textContent = n('docs') ? `${n('docs')} enlace${n('docs')>1?'s':''}` : 'Sin enlaces';
@@ -2992,6 +3027,103 @@ document.getElementById('linkDeleteBtn').addEventListener('click', async ()=>{
   links = links.filter(x=>x.id!==editingLinkId);
   closeLinkModal();
   renderLinks(); renderHome();
+  await persistAll();
+});
+
+// ---------- Pañales ----------
+let editingPanalId = null;
+const PANAL_TIPOS = { pis:'💧 Pis', caca:'💩 Caca', ambos:'💧💩 Pis y caca' };
+
+function panalTimeLabel(ts){ return new Date(ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }
+function toLocalInputValue(ts){ const d = new Date(ts); const off = d.getTimezoneOffset()*60000; return new Date(ts-off).toISOString().slice(0,16); }
+
+function renderPanalesCount(){
+  const el = document.getElementById('homePanalesCount');
+  if(!el) return;
+  const hoy = fmtDateStr(new Date());
+  const n = panales.filter(p=>fmtDateStr(new Date(p.timestamp))===hoy).length;
+  el.textContent = n ? `Hoy: ${n} cambio${n>1?'s':''}` : 'Sin cambios hoy';
+}
+
+function renderPanales(){
+  const listEl = document.getElementById('panalesList');
+  if(!listEl) return;
+  renderPanalesCount();
+  if(!panales.length){
+    listEl.innerHTML = '<div class="todo-empty">Todavía no hay registros. Tocá “＋ Registrar” para anotar el primero.</div>';
+    return;
+  }
+  const groups = {};
+  [...panales].sort((a,b)=>b.timestamp-a.timestamp).forEach(p=>{
+    const k = fmtDateStr(new Date(p.timestamp));
+    (groups[k] = groups[k] || []).push(p);
+  });
+  listEl.innerHTML = Object.keys(groups).map(k=>{
+    const rows = groups[k].map(p=>`
+      <div class="todo-item" data-id="${attrEsc(p.id)}" style="cursor:pointer;">
+        <div class="todo-main">
+          <div class="todo-title">${panalTimeLabel(p.timestamp)} · ${escapeHtml(PANAL_TIPOS[p.tipo]||p.tipo)}</div>
+          ${p.notas ? `<div class="todo-detail">${escapeHtml(p.notas)}</div>` : ''}
+          ${p.cargadoPor ? `<div class="todo-detail">por ${escapeHtml(p.cargadoPor)}</div>` : ''}
+        </div>
+      </div>`).join('');
+    return `<div class="link-cat">${todoDateLabel(k).txt}</div>${rows}`;
+  }).join('');
+  listEl.querySelectorAll('.todo-item').forEach(el=>el.addEventListener('click', ()=>openPanalModal(el.dataset.id)));
+}
+
+function openPanalesView(){
+  renderPanales();
+  const v = document.getElementById('panalesView');
+  v.classList.add('open');
+  v.scrollTop = 0;
+}
+
+function openPanalModal(id){
+  if(isReadOnly){ alert('Activá el modo edición (PIN) para registrar pañales.'); return; }
+  editingPanalId = id || null;
+  const p = id ? panales.find(x=>x.id===id) : null;
+  document.getElementById('panalModalTitle').textContent = p ? 'Editar registro' : 'Nuevo registro';
+  document.getElementById('panalTimeInput').value = toLocalInputValue(p ? p.timestamp : Date.now());
+  document.getElementById('panalTipoInput').value = p ? p.tipo : 'pis';
+  let last = '';
+  try{ last = localStorage.getItem('cuidados_panal_last_user') || ''; }catch(e){}
+  document.getElementById('panalWhoInput').value = p ? (p.cargadoPor||'') : last;
+  document.getElementById('panalNoteInput').value = p ? (p.notas||'') : '';
+  document.getElementById('panalDeleteBtn').style.display = p ? 'block' : 'none';
+  document.getElementById('panalModal').classList.add('open');
+}
+function closePanalModal(){ document.getElementById('panalModal').classList.remove('open'); }
+
+document.getElementById('tilePanales').addEventListener('click', openPanalesView);
+document.getElementById('panalesBackBtn').addEventListener('click', ()=>{
+  document.getElementById('panalesView').classList.remove('open');
+});
+document.getElementById('panalesAddBtn').addEventListener('click', ()=>openPanalModal());
+document.getElementById('panalCancelBtn').addEventListener('click', closePanalModal);
+
+document.getElementById('panalSaveBtn').addEventListener('click', async ()=>{
+  if(isReadOnly){ alert('Activá el modo edición (PIN) para registrar pañales.'); return; }
+  const ts = new Date(document.getElementById('panalTimeInput').value).getTime();
+  if(isNaN(ts)){ alert('Poné una fecha y hora válidas.'); return; }
+  const tipo = document.getElementById('panalTipoInput').value;
+  const who = document.getElementById('panalWhoInput').value.trim();
+  const notas = document.getElementById('panalNoteInput').value.trim();
+  if(who){ try{ localStorage.setItem('cuidados_panal_last_user', who); }catch(e){} }
+  if(editingPanalId){
+    panales = panales.map(p=>p.id===editingPanalId ? {...p, timestamp:ts, tipo, cargadoPor:who, notas} : p);
+  } else {
+    panales = [...panales, { id:'pn'+Date.now()+Math.random().toString(36).slice(2,6), timestamp:ts, tipo, notas, cargadoPor:who }];
+  }
+  closePanalModal(); renderPanales(); renderHome();
+  await persistAll();
+});
+
+document.getElementById('panalDeleteBtn').addEventListener('click', async ()=>{
+  if(isReadOnly || !editingPanalId) return;
+  if(!confirm('¿Borrar este registro?')) return;
+  panales = panales.filter(x=>x.id!==editingPanalId);
+  closePanalModal(); renderPanales(); renderHome();
   await persistAll();
 });
 
