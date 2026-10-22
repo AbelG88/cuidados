@@ -478,6 +478,8 @@
   .home-tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 12px;text-align:center;cursor:pointer;font-family:inherit;color:var(--ink);}
   .home-tile:active{background:#faf8f5;}
   .home-tile .ico{font-size:2rem;display:block;margin-bottom:6px;}
+  .home-tile .ico svg{width:1.2em;height:.92em;display:inline-block;}
+  .ico-inline{width:1.2em;height:.92em;vertical-align:-.12em;margin-right:6px;}
   .home-tile .nm{font-weight:700;font-size:1rem;display:block;}
   .home-tile .sub{font-size:.76rem;color:var(--muted);display:block;margin-top:3px;}
   .panel-btn{position:absolute;left:12px;top:18px;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 10px;font-size:.8rem;cursor:pointer;}
@@ -839,7 +841,7 @@
     <div class="home-grid">
       <button class="home-tile" id="tileCalendar"><span class="ico">📅</span><span class="nm">Calendario</span><span class="sub">Cuidados y actividades</span></button>
       <button class="home-tile" id="tileTodos"><span class="ico">✅</span><span class="nm">Pendientes</span><span class="sub" id="homeTodoCount">—</span></button>
-      <button class="home-tile" id="tilePanales"><span class="ico">🧷</span><span class="nm">Pañales</span><span class="sub" id="homePanalesCount">—</span></button>
+      <button class="home-tile" id="tilePanales"><span class="ico"><svg viewBox="1 3.6 22 16.8" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 5h19v4.2c0 3.6-2.4 6.2-5.2 7.6-1.3.7-2.3 1.7-4.3 1.7s-3-1-4.3-1.7C4.9 15.4 2.5 12.8 2.5 9.2z" fill="#d6ecfa" stroke="#4f93bd" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.7 8.6h18.6" stroke="#4f93bd" stroke-width="1.1" fill="none"/><rect x="3.6" y="5.9" width="3.2" height="1.7" rx=".5" fill="#f2b84b"/><rect x="17.2" y="5.9" width="3.2" height="1.7" rx=".5" fill="#f2b84b"/></svg></span><span class="nm">Pañales</span><span class="sub" id="homePanalesCount">—</span></button>
       <button class="home-tile" id="tileDocs"><span class="ico">📄</span><span class="nm">Documentos</span><span class="sub" id="homeDocsCount">—</span></button>
       <button class="home-tile" id="tileClinica"><span class="ico">🩺</span><span class="nm">Historia clínica</span><span class="sub" id="homeClinicaCount">—</span></button>
     </div>
@@ -863,7 +865,7 @@
 <div id="panalesView">
   <div class="todo-header">
     <button id="panalesBackBtn">‹ Volver</button>
-    <h1>🧷 Pañales</h1>
+    <h1><svg class="ico-inline" viewBox="1 3.6 22 16.8" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 5h19v4.2c0 3.6-2.4 6.2-5.2 7.6-1.3.7-2.3 1.7-4.3 1.7s-3-1-4.3-1.7C4.9 15.4 2.5 12.8 2.5 9.2z" fill="#d6ecfa" stroke="#4f93bd" stroke-width="1.3" stroke-linejoin="round"/><path d="M2.7 8.6h18.6" stroke="#4f93bd" stroke-width="1.1" fill="none"/><rect x="3.6" y="5.9" width="3.2" height="1.7" rx=".5" fill="#f2b84b"/><rect x="17.2" y="5.9" width="3.2" height="1.7" rx=".5" fill="#f2b84b"/></svg>Pañales</h1>
     <button id="panalesAddBtn" class="todo-edit">＋ Registrar</button>
   </div>
   <div class="todo-body">
@@ -877,6 +879,7 @@
     <h2 id="panalModalTitle">Nuevo registro</h2>
     <div class="field"><label>Fecha y hora</label><input type="datetime-local" id="panalTimeInput"></div>
     <div class="field"><label>Tipo</label><select id="panalTipoInput"><option value="pis">💧 Pis</option><option value="caca">💩 Caca</option><option value="ambos">💧💩 Pis y caca</option></select></div>
+    <div class="field"><label>Intento</label><select id="panalIntentoInput"><option value="">Sin intento (cambio normal)</option><option value="exitoso">✅ Intento exitoso</option><option value="fallido">❌ Intento no exitoso</option></select></div>
     <div class="field"><label>Registrado por</label><input type="text" id="panalWhoInput" maxlength="40" placeholder="Ej: Abel, Vicky"></div>
     <div class="field"><label>Nota</label><textarea id="panalNoteInput" rows="2" placeholder="Opcional"></textarea></div>
     <div class="modal-actions">
@@ -982,7 +985,7 @@ function firebaseReady(){ return !!familiaId && !!window.__firebase; }
 let events = [];
 let careBlocks = [];
 let todos = []; // Pendientes: {id,title,detail,date,done,doneAt}
-let panales = []; // Pañales: {id,timestamp,tipo:'pis'|'caca'|'ambos',notas,cargadoPor}
+let panales = []; // Pañales: {id,timestamp,tipo:'pis'|'caca'|'ambos',intento:null|'exitoso'|'fallido',notas,cargadoPor}
 let links = []; // Enlaces: {id,section('docs'|'clinica'),title,url,category,note,createdAt}
 let templates = [
   {id:'t1', title:'Colegio', start:'08:00', end:'12:00'},
@@ -3037,6 +3040,7 @@ document.getElementById('linkDeleteBtn').addEventListener('click', async ()=>{
 // ---------- Pañales ----------
 let editingPanalId = null;
 const PANAL_TIPOS = { pis:'💧 Pis', caca:'💩 Caca', ambos:'💧💩 Pis y caca' };
+const PANAL_INTENTOS = { exitoso:'✅ intento exitoso', fallido:'❌ intento no exitoso' };
 
 function panalTimeLabel(ts){ return new Date(ts).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }
 function toLocalInputValue(ts){ const d = new Date(ts); const off = d.getTimezoneOffset()*60000; return new Date(ts-off).toISOString().slice(0,16); }
@@ -3068,7 +3072,7 @@ function renderPanales(){
     const rows = groups[k].map(p=>`
       <div class="todo-item" data-id="${attrEsc(p.id)}" style="cursor:pointer;">
         <div class="todo-main">
-          <div class="todo-title">${panalTimeLabel(p.timestamp)} · ${escapeHtml(PANAL_TIPOS[p.tipo]||p.tipo)}</div>
+          <div class="todo-title">${panalTimeLabel(p.timestamp)} · ${escapeHtml(PANAL_TIPOS[p.tipo]||p.tipo)}${p.intento && PANAL_INTENTOS[p.intento] ? ' · ' + PANAL_INTENTOS[p.intento] : ''}</div>
           ${p.notas ? `<div class="todo-detail">${escapeHtml(p.notas)}</div>` : ''}
           ${p.cargadoPor ? `<div class="todo-detail">por ${escapeHtml(p.cargadoPor)}</div>` : ''}
         </div>
@@ -3092,6 +3096,7 @@ function openPanalModal(id){
   document.getElementById('panalModalTitle').textContent = p ? 'Editar registro' : 'Nuevo registro';
   document.getElementById('panalTimeInput').value = toLocalInputValue(p ? p.timestamp : Date.now());
   document.getElementById('panalTipoInput').value = p ? p.tipo : 'pis';
+  document.getElementById('panalIntentoInput').value = p ? (p.intento||'') : '';
   let last = '';
   try{ last = localStorage.getItem('cuidados_panal_last_user') || ''; }catch(e){}
   document.getElementById('panalWhoInput').value = p ? (p.cargadoPor||'') : last;
@@ -3113,13 +3118,14 @@ document.getElementById('panalSaveBtn').addEventListener('click', async ()=>{
   const ts = new Date(document.getElementById('panalTimeInput').value).getTime();
   if(isNaN(ts)){ alert('Poné una fecha y hora válidas.'); return; }
   const tipo = document.getElementById('panalTipoInput').value;
+  const intento = document.getElementById('panalIntentoInput').value || null;
   const who = document.getElementById('panalWhoInput').value.trim();
   const notas = document.getElementById('panalNoteInput').value.trim();
   if(who){ try{ localStorage.setItem('cuidados_panal_last_user', who); }catch(e){} }
   if(editingPanalId){
-    panales = panales.map(p=>p.id===editingPanalId ? {...p, timestamp:ts, tipo, cargadoPor:who, notas} : p);
+    panales = panales.map(p=>p.id===editingPanalId ? {...p, timestamp:ts, tipo, intento, cargadoPor:who, notas} : p);
   } else {
-    panales = [...panales, { id:'pn'+Date.now()+Math.random().toString(36).slice(2,6), timestamp:ts, tipo, notas, cargadoPor:who }];
+    panales = [...panales, { id:'pn'+Date.now()+Math.random().toString(36).slice(2,6), timestamp:ts, tipo, intento, notas, cargadoPor:who }];
   }
   closePanalModal(); renderPanales(); renderHome();
   await persistAll();
