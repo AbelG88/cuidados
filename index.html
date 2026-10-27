@@ -979,7 +979,8 @@ const familiaId = urlParams.get('fam'); // id del hijo elegido (cada hijo es un 
 // Hijos disponibles. El id es el documento de Firestore: 'dante' conserva los datos que ya existen.
 const HIJOS = [
   {id:'dante',  nombre:'Dante',  emoji:'🧒'},
-  {id:'porotx', nombre:'Porotx', emoji:'👶'}
+  {id:'porotx', nombre:'Porotx', emoji:'👶'},
+  {id:'isa',    nombre:'Isa',    emoji:'👧'}
 ];
 function nombreHijo(){
   const h = HIJOS.find(x=>x.id===familiaId);

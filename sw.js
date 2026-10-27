@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuidados-v8';
+const CACHE_NAME = 'cuidados-v9';
 const ASSETS = [
   './index.html',
   './manifest.json',
