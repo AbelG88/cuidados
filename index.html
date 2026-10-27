@@ -508,7 +508,7 @@
 
 <header>
   <button class="panel-btn" id="openHomeBtn">☰ Panel</button>
-  <h1><img src="icons/icon-192.png?v=4" alt="" style="width:28px;height:28px;vertical-align:-6px;border-radius:6px;margin-right:6px;"> Dante</h1>
+  <h1><img src="icons/icon-192.png?v=4" alt="" style="width:28px;height:28px;vertical-align:-6px;border-radius:6px;margin-right:6px;"> <span class="hijo-nombre">Dante</span></h1>
   <div class="month-nav">
     <button id="prevMonth">‹</button>
     <div class="month-label" id="monthLabel"></div>
@@ -834,7 +834,7 @@
 
 <!-- Pantalla: Panel principal -->
 <div id="homeView" class="open">
-  <div class="home-top"><h1><img src="icons/icon-192.png?v=4" alt=""> Dante</h1></div>
+  <div class="home-top"><h1><img src="icons/icon-192.png?v=4" alt=""> <span class="hijo-nombre">Dante</span></h1><button id="cambiarHijoBtn" style="margin-top:6px;font-size:.75rem;padding:4px 12px;border-radius:14px;border:1px solid #ccc;background:#fff;color:#555;">⇄ Cambiar de hijo</button></div>
   <div class="home-body">
     <div class="home-lock">👀 Modo solo lectura <button id="homeUnlockBtn">🔒 Editar</button></div>
     <div id="homeToday" style="display:none;"></div>
@@ -975,9 +975,20 @@
 <script>
 // ---------- Modo compartido (Firebase) ----------
 const urlParams = new URLSearchParams(window.location.search);
-const familiaId = urlParams.get('fam');
+const familiaId = urlParams.get('fam'); // id del hijo elegido (cada hijo es un documento aparte en Firestore)
+// Hijos disponibles. El id es el documento de Firestore: 'dante' conserva los datos que ya existen.
+const HIJOS = [
+  {id:'dante',  nombre:'Dante',  emoji:'🧒'},
+  {id:'porotx', nombre:'Porotx', emoji:'👶'}
+];
+function nombreHijo(){
+  const h = HIJOS.find(x=>x.id===familiaId);
+  if(h) return h.nombre;
+  return familiaId ? familiaId.charAt(0).toUpperCase() + familiaId.slice(1) : 'Cuidados';
+}
 // El PIN de edición, una vez validado, se guarda en este dispositivo para no pedirlo de nuevo.
-const UNLOCK_KEY = 'cuidados_unlocked_' + familiaId;
+// Es uno solo para todos los hijos (se mantiene la clave de Dante para no pedirlo otra vez).
+const UNLOCK_KEY = 'cuidados_unlocked_dante';
 let isReadOnly = localStorage.getItem(UNLOCK_KEY) !== 'true';
 function firebaseReady(){ return !!familiaId && !!window.__firebase; }
 
@@ -2714,15 +2725,30 @@ document.querySelectorAll('#moreOptionsMenu .menu-item').forEach(btn=>{
 });
 
 // Si el link no trae ?fam=... no hay con quién sincronizar: avisamos y no arrancamos a ciegas
+function mostrarSelectorHijos(){
+  document.title = 'Cuidados';
+  document.body.innerHTML = `
+    <div style="max-width:420px;margin:0 auto;padding:48px 20px;text-align:center;font-family:sans-serif;">
+      <h1 style="margin:0 0 6px;font-size:1.5rem;">Cuidados</h1>
+      <p style="color:#8a8a8a;margin:0 0 28px;">¿De quién querés ver la info?</p>
+      <div style="display:grid;gap:14px;">
+        ${HIJOS.map(h=>`<a href="?fam=${encodeURIComponent(h.id)}" style="display:block;padding:22px 16px;border-radius:16px;background:#fff;border:1px solid #e6e3dc;text-decoration:none;color:#2b2b2b;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+          <div style="font-size:2rem;line-height:1;">${h.emoji}</div>
+          <div style="font-size:1.2rem;font-weight:600;margin-top:8px;">${escapeHtml(h.nombre)}</div>
+        </a>`).join('')}
+      </div>
+    </div>`;
+}
+
 function iniciarApp(){
   if(!familiaId){
-    document.body.innerHTML = `
-      <div style="max-width:420px;margin:60px auto;padding:24px;text-align:center;font-family:sans-serif;">
-        <h2>Falta el link completo</h2>
-        <p style="color:#8a8a8a;">Este link no tiene el identificador de familia (<code>?fam=...</code>). Pedile a quien te lo compartió el link completo de edición o de solo lectura.</p>
-      </div>`;
+    mostrarSelectorHijos();
     return;
   }
+  document.title = nombreHijo();
+  document.querySelectorAll('.hijo-nombre').forEach(el=>{ el.textContent = nombreHijo(); });
+  const cambiarBtn = document.getElementById('cambiarHijoBtn');
+  if(cambiarBtn) cambiarBtn.addEventListener('click', ()=>{ window.location.href = window.location.pathname; });
   if(!window.__firebase){
     const errDetail = window.__firebaseError ? `<p style="color:#c0392b;font-size:.75rem;margin-top:16px;">Detalle técnico: ${escapeHtml(String(window.__firebaseError.message||window.__firebaseError))}</p>` : '';
     document.body.innerHTML = `
