@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuidados-v11';
+const CACHE_NAME = 'gurises-v12';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -22,9 +22,24 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Estrategia: red primero, cache como respaldo (así los datos de Firebase siempre intentan ir a la red)
+// Estrategia: red primero; si hay red se guarda copia (solo del sitio y de las librerías por CDN),
+// y si no hay red se responde con la copia guardada. Firestore no se cachea: sus datos siempre van a la red.
+const CACHEABLE_HOSTS = ['www.gstatic.com', 'cdnjs.cloudflare.com'];
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  const cacheable = url.origin === self.location.origin || CACHEABLE_HOSTS.includes(url.hostname);
+  if (!cacheable) return;
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(req)
+      .then((res) => {
+        if (res && (res.ok || res.type === 'opaque')) {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(req))
   );
 });
