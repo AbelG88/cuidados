@@ -2430,7 +2430,7 @@ document.getElementById('exportProposalBtn').addEventListener('click', ()=>{
   const a = document.createElement('a');
   a.href = url;
   const fechaStr = fmtDateStr(new Date());
-  a.download = `respaldo_cuidados_${fechaStr}.json`;
+  a.download = `respaldo_gurises_${fechaStr}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
